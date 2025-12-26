@@ -23,7 +23,7 @@ export default function AIInterpretation({
     const [copied, setCopied] = useState(false);
     const [promptCopied, setPromptCopied] = useState(false);
     const [showReasoning, setShowReasoning] = useState(false);
-    const [showPrompt, setShowPrompt] = useState(false);
+    const [showPrompt, setShowPrompt] = useState(true);
 
     const handleCopy = async () => {
         try {

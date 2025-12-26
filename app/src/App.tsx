@@ -93,6 +93,7 @@ function App() {
       dateType: data.dateType,
       leap: data.leap,
     });
+    // console.log(astrolabeData);
   };
 
   const handleAIInterpret = async () => {
@@ -103,6 +104,7 @@ function App() {
         ? astro.bySolar(inputDate, astrolabeData.time, astrolabeData.gender)
         : astro.byLunar(inputDate, astrolabeData.time, astrolabeData.gender, astrolabeData.leap);
 
+      console.log(astrolabeInstance);
       // 生成运势数据
       const horoscopeInstance = astrolabeInstance.horoscope(new Date(), 0);
       const prompt = buildPrompt({

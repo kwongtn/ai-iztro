@@ -6,6 +6,7 @@
 import { getAIConfig } from "./aiConfig";
 import type FunctionalAstrolabe from "iztro/lib/astro/FunctionalAstrolabe";
 import type { IFunctionalHoroscope } from "iztro/lib/astro/FunctionalHoroscope";
+import type { IFunctionalPalace } from "iztro/lib/astro/FunctionalPalace";
 
 export interface InterpretationRequest {
   astrolabeData: any; // 排盘数据
@@ -33,6 +34,7 @@ export function buildPrompt(
   focusArea?: string
 ): string {
   const { astrolabe, horoscope } = astrolabeData;
+  // console.log(astrolabeData)
 
   let prompt = `你是一位经验丰富、通情达理的紫微斗数命理大师。请根据以下排盘数据，为命主提供一份既专业又通俗易懂的解读。\n\n`;
   prompt += `请注意：\n`;
@@ -42,9 +44,8 @@ export function buildPrompt(
 
   // 基本信息
   prompt += `## 📋 命主基本信息\n`;
-  prompt += `- 性别: ${
-    ["male", "男"].includes(astrolabe?.gender) ? "男" : "女"
-  }\n`;
+  prompt += `- 性别: ${["male", "男"].includes(astrolabe?.gender) ? "男" : "女"
+    }\n`;
   prompt += `- 阳历: ${astrolabe?.solarDate}\n`;
   prompt += `- 农历: ${astrolabe?.lunarDate}\n`;
   prompt += `- 八字: ${astrolabe?.chineseDate}\n`;
@@ -73,31 +74,26 @@ export function buildPrompt(
             .join(",") || "(空宫)";
         return majors;
       };
-      prompt += `- [本宫] 命宫 (${ming.heavenlyStem}${
-        ming.earthlyBranch
-      }): ${formatStarsSimple(ming)}\n`;
-      prompt += `- [对宫] 迁移 (${qianyi.heavenlyStem}${
-        qianyi.earthlyBranch
-      }): ${formatStarsSimple(qianyi)}\n`;
-      prompt += `- [三合] 财帛 (${caibo.heavenlyStem}${
-        caibo.earthlyBranch
-      }): ${formatStarsSimple(caibo)}\n`;
-      prompt += `- [三合] 官禄 (${guanlu.heavenlyStem}${
-        guanlu.earthlyBranch
-      }): ${formatStarsSimple(guanlu)}\n\n`;
+      prompt += `- [本宫] 命宫 (${ming.heavenlyStem}${ming.earthlyBranch
+        }): ${formatStarsSimple(ming)}\n`;
+      prompt += `- [对宫] 迁移 (${qianyi.heavenlyStem}${qianyi.earthlyBranch
+        }): ${formatStarsSimple(qianyi)}\n`;
+      prompt += `- [三合] 财帛 (${caibo.heavenlyStem}${caibo.earthlyBranch
+        }): ${formatStarsSimple(caibo)}\n`;
+      prompt += `- [三合] 官禄 (${guanlu.heavenlyStem}${guanlu.earthlyBranch
+        }): ${formatStarsSimple(guanlu)}\n\n`;
     }
   }
 
   // 十二宫信息
   if (astrolabe?.palaces) {
     prompt += `## 🏰 十二宫详细配置\n`;
-    astrolabe.palaces.forEach((palace: any, index: number) => {
+    astrolabe.palaces.forEach((palace: IFunctionalPalace, index: number) => {
       prompt += `\n### 【${palace.name}宫】 (地支:${palace.earthlyBranch} | 天干:${palace.heavenlyStem})\n`;
 
       // 格式化星曜显示 helper
       const formatStar = (s: any) =>
-        `${s.name}${s.mutagen ? `(${s.mutagen})` : ""}${
-          s.brightness ? `[${s.brightness}]` : ""
+        `${s.name}${s.mutagen ? `(${s.mutagen})` : ""}${s.brightness ? `[${s.brightness}]` : ""
         }`;
 
       // 主星
@@ -154,8 +150,8 @@ export function buildPrompt(
       if (palace.ages || palace.decadal) {
         const limits = [];
         if (palace.ages) limits.push(`小限: ${palace.ages.join(" ")}`);
-        if (typeof palace.decadal === "number")
-          limits.push(`大限: ${palace.decadal} - ${palace.decadal + 9}`);
+        if (palace.decadal?.range)
+          limits.push(`大限: ${palace.decadal.range.join(" - ")}`);
         if (limits.length > 0) {
           prompt += `📅 运限时间: ${limits.join(" | ")}\n`;
         }
@@ -165,24 +161,34 @@ export function buildPrompt(
 
   // 运限信息
   prompt += `\n## ⏳ 运限走势\n`;
-  if (horoscope?.decadal) {
+  const decadalPalace = astrolabe.palace(horoscope.decadal.index);
+  if (decadalPalace) {
     prompt += `### 当前大限 (10年运)\n`;
-    prompt += `- 大限位置: ${horoscope.decadal.name}宫\n`;
-    prompt += `- 大限时间: ${
-      horoscope.decadal.range?.join(" - ") || ""
-    } (虚岁)\n`;
+    prompt += `- 大限位置: ${decadalPalace.name}宫\n`;
+    prompt += `- 大限时间: ${decadalPalace.decadal.range?.join(" - ") || ""
+      } (虚岁)\n`;
     prompt += `- 大限四化: ${horoscope.decadal.mutagen?.join(", ") || "无"}\n`;
   }
 
+  const yearlyPalace = astrolabe.palace(horoscope.yearly.index) as IFunctionalPalace;
   if (horoscope?.yearly) {
     prompt += `\n### 当前流年 (1年运)\n`;
-    prompt += `- 流年位置: ${horoscope.yearly.name}宫\n`;
+    prompt += `- 流年位置: ${yearlyPalace.name}宫\n`;
     // horoscope.yearly.year 可能是undefined, 使用天干地支代替或标注当前时间
-    prompt += `- 流年时间: ${horoscope.yearly.heavenlyStem}${
-      horoscope.yearly.earthlyBranch
-    }年 (公历${new Date().getFullYear()}年)\n`;
+    prompt += `- 流年时间: ${horoscope.yearly.heavenlyStem}${horoscope.yearly.earthlyBranch
+      }年 (公历${new Date().getFullYear()}年)\n`;
     prompt += `- 命主虚岁: ${horoscope.age?.nominalAge}岁\n`;
     prompt += `- 流年四化: ${horoscope.yearly.mutagen?.join(", ") || "无"}\n`;
+  }
+
+  const monthlyPalace = astrolabe.palace(horoscope.monthly.index) as IFunctionalPalace;
+  if (horoscope?.monthly) {
+    prompt += `\n### 当前流月 (1月运)\n`;
+    prompt += `- 流月位置: ${monthlyPalace.name}宫\n`;
+    // horoscope.yearly.year 可能是undefined, 使用天干地支代替或标注当前时间
+    prompt += `- 流月时间: ${horoscope.monthly.heavenlyStem}${horoscope.monthly.earthlyBranch
+      }年${horoscope.lunarDate.slice(5, 7)}\n`;
+    prompt += `- 流月四化: ${horoscope.monthly.mutagen?.join(", ") || "无"}\n`;
   }
 
   if (focusArea) {
@@ -193,9 +199,8 @@ export function buildPrompt(
   prompt += `请按照以下结构进行回复（语言要温暖、有力量，多给建设性意见）：\n`;
   prompt += `1. **核心格局**：一句话概括命盘最大的特点（如"杀破狼变格"、"机月同梁"等），并解释这意味着什么。\n`;
   prompt += `2. **性格画像**：优点和盲点各是什么？（用心理学视角的词汇，如"执行力强但容易冲动"）。\n`;
-  prompt += `3. **${
-    focusArea ? "重点解答" : "重点分析"
-  }**：针对命主最关心的问题（或事业财运）进行详细剖析。\n`;
+  prompt += `3. **${focusArea ? "重点解答" : "重点分析"
+    }**：针对命主最关心的问题（或事业财运）进行详细剖析。\n`;
   prompt += `4. **运势指引**：结合大限流年，指出当下的机遇和风险。\n`;
   prompt += `5. **大师锦囊**：给出一两个切实可行的行动建议（如"适合从事...行业"、"今年注意..."）。\n`;
 
@@ -244,7 +249,7 @@ export async function interpretAstrolabe(
       const errorData = await response.json().catch(() => ({}));
       throw new Error(
         errorData.error?.message ||
-          `API请求失败: ${response.status} ${response.statusText}`
+        `API请求失败: ${response.status} ${response.statusText}`
       );
     }
 
@@ -259,10 +264,10 @@ export async function interpretAstrolabe(
         reasoning: choice.message?.reasoning_content,
         usage: data.usage
           ? {
-              promptTokens: data.usage.prompt_tokens,
-              completionTokens: data.usage.completion_tokens,
-              totalTokens: data.usage.total_tokens,
-            }
+            promptTokens: data.usage.prompt_tokens,
+            completionTokens: data.usage.completion_tokens,
+            totalTokens: data.usage.total_tokens,
+          }
           : undefined,
       };
     }
