@@ -3,10 +3,11 @@
  * 负责调用DeepSeek Chat Completion API进行排盘解读
  */
 
+import type { IFunctionalAstrolabe } from "iztro/lib/astro/FunctionalAstrolabe";
 import { getAIConfig } from "./aiConfig";
-import type FunctionalAstrolabe from "iztro/lib/astro/FunctionalAstrolabe";
 import type { IFunctionalHoroscope } from "iztro/lib/astro/FunctionalHoroscope";
 import type { IFunctionalPalace } from "iztro/lib/astro/FunctionalPalace";
+import type FunctionalStar from "iztro/lib/star/FunctionalStar";
 
 export interface InterpretationRequest {
   astrolabeData: any; // 排盘数据
@@ -23,18 +24,30 @@ export interface InterpretationResponse {
   };
 }
 
+export function baseInformation(astrolabe: IFunctionalAstrolabe) {
+  let prompt = `## 📋 命主基本信息\n`;
+
+  prompt += `- 性别: ${["male", "男"].includes(astrolabe.gender) ? "男" : "女"}\n`;
+  prompt += `- 阳历: ${astrolabe.solarDate}\n`;
+  prompt += `- 农历: ${astrolabe.lunarDate}\n`;
+  prompt += `- 八字: ${astrolabe.chineseDate}\n`;
+  prompt += `- 局数: ${astrolabe.fiveElementsClass}\n`;
+  prompt += `- 命主: ${astrolabe.soul} | 身主: ${astrolabe.body}\n`;
+  prompt += `- 星座: ${astrolabe.sign} | 生肖: ${astrolabe.zodiac}\n`;
+  prompt += `- 命宫位置: ${astrolabe.earthlyBranchOfSoulPalace}宫 | 身宫位置: ${astrolabe.earthlyBranchOfBodyPalace}宫\n\n`;
+
+  return prompt;
+}
+
 /**
  * 构建AI提示词
  */
 export function buildPrompt(
-  astrolabeData: {
-    astrolabe: FunctionalAstrolabe;
-    horoscope: IFunctionalHoroscope;
-  },
+  horoscope: IFunctionalHoroscope,
   focusArea?: string
 ): string {
-  const { astrolabe, horoscope } = astrolabeData;
-  // console.log(astrolabeData)
+  const astrolabe = horoscope.astrolabe;
+  console.log(horoscope)
 
   let prompt = `你是一位经验丰富、通情达理的紫微斗数命理大师。请根据以下排盘数据，为命主提供一份既专业又通俗易懂的解读。\n\n`;
   prompt += `请注意：\n`;
@@ -42,46 +55,44 @@ export function buildPrompt(
   prompt += `2. **逻辑清晰**：不要罗列星曜含义，而是要综合全盘（三方四正）进行逻辑推演。\n`;
   prompt += `3. **全面细致**：不仅要看本宫，还要结合对宫、三合宫以及大限流年的走势。\n\n`;
 
-  // 基本信息
-  prompt += `## 📋 命主基本信息\n`;
-  prompt += `- 性别: ${["male", "男"].includes(astrolabe?.gender) ? "男" : "女"
-    }\n`;
-  prompt += `- 阳历: ${astrolabe?.solarDate}\n`;
-  prompt += `- 农历: ${astrolabe?.lunarDate}\n`;
-  prompt += `- 八字: ${astrolabe?.chineseDate}\n`;
-  prompt += `- 局数: ${astrolabe?.fiveElementsClass}\n`;
-  prompt += `- 命主: ${astrolabe?.soul} | 身主: ${astrolabe?.body}\n`;
-  prompt += `- 命宫位置: ${astrolabe?.earthlyBranchOfSoulPalace}宫 | 身宫位置: ${astrolabe?.earthlyBranchOfBodyPalace}宫\n\n`;
+  prompt += baseInformation(astrolabe);
+
+  // Helper to format 三方四正
+  function formatStarsSimple(p: IFunctionalPalace) {
+    return p.majorStars
+      ?.map(
+        (s: FunctionalStar) => `${s.name}${s.brightness ? `[${s.brightness}]` : ""}`
+      )
+      .join(",") || "(空宫)";
+  };
 
   // 三方四正 (命宫)
   if (astrolabe?.palaces) {
-    const getPalaceByName = (name: string) =>
-      astrolabe.palaces.find((p: any) => p.name === name);
-    const ming = getPalaceByName("命宫");
-    const caibo = getPalaceByName("财帛");
-    const guanlu = getPalaceByName("官禄");
-    const qianyi = getPalaceByName("迁移");
+    const mingIndex = astrolabe.palaces.findIndex((p: any) => p.name === "命宫");
+    if (mingIndex >= 0) {
+      const sp = astrolabe.surroundedPalaces(mingIndex);
+      if (sp) {
+        prompt += `## 📐 三方四正 (命宫/先天格局)\n`;
+        prompt += `这是命盘最核心的结构(三角形+对角线)，请重点分析：\n`;
+        prompt += `- [本宫] 命宫 (${sp.target.heavenlyStem}${sp.target.earthlyBranch}): ${formatStarsSimple(sp.target)}\n`;
+        prompt += `- [对宫] 迁移 (${sp.opposite.heavenlyStem}${sp.opposite.earthlyBranch}): ${formatStarsSimple(sp.opposite)}\n`;
+        prompt += `- [三合] 财帛 (${sp.wealth.heavenlyStem}${sp.wealth.earthlyBranch}): ${formatStarsSimple(sp.wealth)}\n`;
+        prompt += `- [三合] 官禄 (${sp.career.heavenlyStem}${sp.career.earthlyBranch}): ${formatStarsSimple(sp.career)}\n\n`;
+      }
+    }
 
-    if (ming && caibo && guanlu && qianyi) {
-      prompt += `## 📐 三方四正 (命宫核心格局)\n`;
-      prompt += `这是命盘最核心的结构(三角形+对角线)，请重点分析：\n`;
-      const formatStarsSimple = (p: any) => {
-        const majors =
-          p.majorStars
-            ?.map(
-              (s: any) => `${s.name}${s.brightness ? `[${s.brightness}]` : ""}`
-            )
-            .join(",") || "(空宫)";
-        return majors;
-      };
-      prompt += `- [本宫] 命宫 (${ming.heavenlyStem}${ming.earthlyBranch
-        }): ${formatStarsSimple(ming)}\n`;
-      prompt += `- [对宫] 迁移 (${qianyi.heavenlyStem}${qianyi.earthlyBranch
-        }): ${formatStarsSimple(qianyi)}\n`;
-      prompt += `- [三合] 财帛 (${caibo.heavenlyStem}${caibo.earthlyBranch
-        }): ${formatStarsSimple(caibo)}\n`;
-      prompt += `- [三合] 官禄 (${guanlu.heavenlyStem}${guanlu.earthlyBranch
-        }): ${formatStarsSimple(guanlu)}\n\n`;
+    // 三方四正 (身宫) - 如果身宫和命宫不同，补充身宫信息
+    const shenIndex = astrolabe.palaces.findIndex((p: any) => p.name === "身宫" || p.isBodyPalace);
+    if (shenIndex >= 0 && shenIndex !== mingIndex) {
+      const sp = astrolabe.surroundedPalaces(shenIndex);
+      if (sp) {
+        prompt += `## 🧘 身宫格局 (后天/中年后)\n`;
+        prompt += `身宫代表后天发展和中年后的运势方向：\n`;
+        prompt += `- [身宫] (${sp.target.heavenlyStem}${sp.target.earthlyBranch}): ${formatStarsSimple(sp.target)}\n`;
+        prompt += `- [对宫] (${sp.opposite.heavenlyStem}${sp.opposite.earthlyBranch}): ${formatStarsSimple(sp.opposite)}\n`;
+        prompt += `- [三合] 财帛 (${sp.wealth.heavenlyStem}${sp.wealth.earthlyBranch}): ${formatStarsSimple(sp.wealth)}\n`;
+        prompt += `- [三合] 官禄 (${sp.career.heavenlyStem}${sp.career.earthlyBranch}): ${formatStarsSimple(sp.career)}\n\n`;
+      }
     }
   }
 
@@ -92,9 +103,10 @@ export function buildPrompt(
       prompt += `\n### 【${palace.name}宫】 (地支:${palace.earthlyBranch} | 天干:${palace.heavenlyStem})\n`;
 
       // 格式化星曜显示 helper
-      const formatStar = (s: any) =>
-        `${s.name}${s.mutagen ? `(${s.mutagen})` : ""}${s.brightness ? `[${s.brightness}]` : ""
-        }`;
+      function formatStar(s: FunctionalStar) {
+        return `${s.name}${s.mutagen ? `(${s.mutagen})` : ""}${s.brightness ? `[${s.brightness}]` : ""
+          }`;
+      }
 
       // 主星
       const majorStars = palace.majorStars || [];
@@ -168,6 +180,15 @@ export function buildPrompt(
     prompt += `- 大限时间: ${decadalPalace.decadal.range?.join(" - ") || ""
       } (虚岁)\n`;
     prompt += `- 大限四化: ${horoscope.decadal.mutagen?.join(", ") || "无"}\n`;
+
+    // 大限三方四正
+    const sp = astrolabe.surroundedPalaces(horoscope.decadal.index);
+    if (sp) {
+      prompt += `- 大限三方四正:\n`;
+      prompt += `  * 本宫: ${formatStarsSimple(sp.target)} (${sp.target.name})\n`;
+      prompt += `  * 对宫: ${formatStarsSimple(sp.opposite)} (${sp.opposite.name})\n`;
+      prompt += `  * 三合(财/官): ${formatStarsSimple(sp.wealth)} (${sp.wealth.name}) | ${formatStarsSimple(sp.career)} (${sp.career.name})\n`;
+    }
   }
 
   const yearlyPalace = astrolabe.palace(horoscope.yearly.index) as IFunctionalPalace;
@@ -179,6 +200,15 @@ export function buildPrompt(
       }年 (公历${new Date().getFullYear()}年)\n`;
     prompt += `- 命主虚岁: ${horoscope.age?.nominalAge}岁\n`;
     prompt += `- 流年四化: ${horoscope.yearly.mutagen?.join(", ") || "无"}\n`;
+
+    // 流年三方四正
+    const sp = astrolabe.surroundedPalaces(horoscope.yearly.index);
+    if (sp) {
+      prompt += `- 流年三方四正:\n`;
+      prompt += `  * 本宫: ${formatStarsSimple(sp.target)} (${sp.target.name})\n`;
+      prompt += `  * 对宫: ${formatStarsSimple(sp.opposite)} (${sp.opposite.name})\n`;
+      prompt += `  * 三合(财/官): ${formatStarsSimple(sp.wealth)} (${sp.wealth.name}) | ${formatStarsSimple(sp.career)} (${sp.career.name})\n`;
+    }
   }
 
   const monthlyPalace = astrolabe.palace(horoscope.monthly.index) as IFunctionalPalace;
@@ -191,6 +221,15 @@ export function buildPrompt(
     prompt += `- 流月四化: ${horoscope.monthly.mutagen?.join(", ") || "无"}\n`;
   }
 
+  // 流月三方四正
+  const sp = astrolabe.surroundedPalaces(horoscope.monthly.index);
+  if (sp) {
+    prompt += `- 流月三方四正:\n`;
+    prompt += `  * 本宫: ${formatStarsSimple(sp.target)} (${sp.target.name})\n`;
+    prompt += `  * 对宫: ${formatStarsSimple(sp.opposite)} (${sp.opposite.name})\n`;
+    prompt += `  * 三合(财/官): ${formatStarsSimple(sp.wealth)} (${sp.wealth.name}) | ${formatStarsSimple(sp.career)} (${sp.career.name})\n`;
+  }
+
   if (focusArea) {
     prompt += `\n## 🎯 重点关注\n命主特别想了解: "${focusArea}"\n请重点针对此领域进行深入分析。\n`;
   }
@@ -201,8 +240,10 @@ export function buildPrompt(
   prompt += `2. **性格画像**：优点和盲点各是什么？（用心理学视角的词汇，如"执行力强但容易冲动"）。\n`;
   prompt += `3. **${focusArea ? "重点解答" : "重点分析"
     }**：针对命主最关心的问题（或事业财运）进行详细剖析。\n`;
-  prompt += `4. **运势指引**：结合大限流年，指出当下的机遇和风险。\n`;
-  prompt += `5. **大师锦囊**：给出一两个切实可行的行动建议（如"适合从事...行业"、"今年注意..."）。\n`;
+  prompt += `4. **运势指引**：结合大限流年流月，指出当下的机遇和风险。\n`;
+  prompt += `5. **大师锦囊**：给出一两个切实可行的行动建议（如"适合从事...行业"、"今年/这个月注意..."）。\n`;
+  prompt += `6. **详情询问**：如果还有其他问题，请直接询问，以达到更深入的分析。\n`;
+  prompt += `7. **结束语**：以当前流年流月总结并鼓励命主。可做四句诗。\n`;
 
   return prompt;
 }

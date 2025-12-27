@@ -104,13 +104,9 @@ function App() {
         ? astro.bySolar(inputDate, astrolabeData.time, astrolabeData.gender)
         : astro.byLunar(inputDate, astrolabeData.time, astrolabeData.gender, astrolabeData.leap);
 
-      console.log(astrolabeInstance);
       // 生成运势数据
       const horoscopeInstance = astrolabeInstance.horoscope(new Date(), 0);
-      const prompt = buildPrompt({
-        astrolabe: astrolabeInstance,
-        horoscope: horoscopeInstance,
-      });
+      const prompt = buildPrompt(horoscopeInstance);
 
       // 检查是否已配置API密钥
       if (!isConfigured()) {
