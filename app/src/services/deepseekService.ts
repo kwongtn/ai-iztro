@@ -73,6 +73,124 @@ export function getBaseInformationPrompt(astrolabe: IFunctionalAstrolabe) {
   ].join('\n');
 }
 
+export function getFooter(focusArea?: string) {
+  return [
+    '',
+    '',
+    "---",
+    "# 📝 回复结构 (Output Format)",
+    "",
+    "请严格按照以下Markdown格式输出：",
+    "",
+    "## 1. 🔭 命盘总评：（一行字带过命盘格局）",
+    "*（用一句话概括核心格局，如“杀破狼变格”，并用心理学语言解释这种格局的性格本质。）*",
+    "",
+    "## 2. 🧬 性格画像：光辉与盲点",
+    "* **用一句话概括性格**",
+    "* **你的优势**：(结合命宫与吉星分析)",
+    "* **潜意识盲点**：(结合化忌、煞星或空宫分析，指出容易踩坑的性格特质，如“容易心软”、“过于执着细节”等)",
+    "",
+    `## 3. 🎯 ${focusArea ? "深度解答" : "深度剖析"}：你最关心的问题`,
+    "*(重点结合大限和流年，分析当前的事业/财运或感情趋势)*",
+    "* **现状诊断**：(基于流年宫位和四化)",
+    "* **未来推演**：(基于大限走势)",
+    "",
+    "## 4. 💡 大师锦囊 (Actionable Advice)",
+    "* **机遇在哪里**：(指出哪个方向或行业有利)",
+    "* **避坑指南**：(针对今年的流年煞星，给出具体生活建议，如“今年少签担保合同”、“注意呼吸道健康”)",
+    "* **开运建议**：(简单的行为建议，如“多穿亮色”、“多与属X的人合作”)",
+    "",
+    "## 5. 📜 结语",
+    "*(用温暖、鼓励的话语总结，附上一首四句定场诗)*",].join("\n");
+}
+
+export function getBasePalaceDetails(horoscope: IFunctionalHoroscope) {
+  const astrolabe = horoscope.astrolabe;
+  const prompt = [
+    `## 🏰 十二宫详细配置`,
+
+  ];
+  if (astrolabe.palaces) {
+    astrolabe.palaces.forEach((palace: IFunctionalPalace, index: number) => {
+      let title = `\n### 【${palace.name}${palace.name.endsWith("宫") ? "" : "宫"}】 (地支:${palace.earthlyBranch} | 天干:${palace.heavenlyStem})`;
+      if (palace.isBodyPalace) {
+        title += ` (身宫)`;
+      }
+      prompt.push(title);
+
+      // 格式化星曜显示 helper
+      function formatStar(s: FunctionalStar) {
+        return `${s.name}${s.mutagen ? `(${s.mutagen})` : ""}${s.brightness ? `[${s.brightness}]` : ""
+          }`;
+      }
+
+      // 主星
+      const majorStars = palace.majorStars || [];
+      if (majorStars.length > 0) {
+        prompt.push(`🔴 主星: ${majorStars.map(formatStar).join(", ")}\n`);
+      } else {
+        prompt.push(`🔴 主星: (空宫)\n`);
+      }
+
+      // 辅星
+      if (palace.minorStars.length > 0) {
+        prompt.push(`🔵 辅星: ${palace.minorStars.map(formatStar).join(", ")}\n`);
+      } else {
+        prompt.push(`🔵 辅星: (空宫)\n`);
+      }
+
+      // 杂曜
+      if (palace.adjectiveStars.length > 0) {
+        prompt.push(`⚪ 杂曜: ${palace.adjectiveStars
+          .map(formatStar)
+          .join(", ")}\n`);
+      } else {
+        prompt.push(`⚪ 杂曜: (空宫)\n`);
+      }
+
+      // 神煞/流曜 (包括原局神煞 + 大限/流年流曜)
+      const otherStars = [];
+      // 原局神煞
+      otherStars.push(`长生12: ${palace.changsheng12}`);
+      otherStars.push(`博士12: ${palace.boshi12}`);
+      otherStars.push(`将前12: ${palace.jiangqian12}`);
+      otherStars.push(`岁前12: ${palace.suiqian12}`);
+
+      // 运限流曜 (从horoscope中获取)
+      // 大限流曜
+      if (horoscope.decadal?.stars?.[index]) {
+        const decStars = horoscope.decadal.stars[index];
+        if (decStars.length > 0) {
+          otherStars.push(`大限流曜: ` + decStars.map(formatStar).join(","));
+        }
+      }
+      // 流年流曜
+      if (horoscope.yearly?.stars?.[index]) {
+        const yearStars = horoscope.yearly.stars[index];
+        if (yearStars.length > 0) {
+          otherStars.push(`流年流曜: ` + yearStars.map(formatStar).join(","));
+        }
+      }
+
+      if (otherStars.length > 0) {
+        prompt.push(`✨ 其他神煞: ${otherStars.join(" | ")}\n`);
+      }
+
+      // 小限与大限时间 (对应UI显示)
+      if (palace.ages || palace.decadal) {
+        const limits = [];
+        if (palace.ages) limits.push(`小限: ${palace.ages.join(" ")}`);
+        if (palace.decadal?.range)
+          limits.push(`大限: ${palace.decadal.range.join(" - ")}`);
+        if (limits.length > 0) {
+          prompt.push(`📅 运限时间: ${limits.join(" | ")}\n`);
+        }
+      }
+    });
+  }
+
+}
+
 export function getPalacesPrompt(astrolabe: IFunctionalAstrolabe) {
   const mingIndex = (astrolabe.palace("命宫") as IFunctionalPalace).index;
   const sp = astrolabe.surroundedPalaces(mingIndex);
@@ -209,84 +327,7 @@ export function buildPrompt(
   prompt += getPalacesPrompt(astrolabe);
 
   // 十二宫信息
-  if (astrolabe?.palaces) {
-    prompt += `## 🏰 十二宫详细配置\n`;
-    astrolabe.palaces.forEach((palace: IFunctionalPalace, index: number) => {
-      prompt += `\n### 【${palace.name}${palace.name.endsWith("宫") ? "" : "宫"}】 (地支:${palace.earthlyBranch} | 天干:${palace.heavenlyStem})`;
-      if (palace.isBodyPalace) {
-        prompt += ` (身宫)`;
-      }
-      prompt += `\n`;
-      // 格式化星曜显示 helper
-      function formatStar(s: FunctionalStar) {
-        return `${s.name}${s.mutagen ? `(${s.mutagen})` : ""}${s.brightness ? `[${s.brightness}]` : ""
-          }`;
-      }
-
-      // 主星
-      const majorStars = palace.majorStars || [];
-      if (majorStars.length > 0) {
-        prompt += `🔴 主星: ${majorStars.map(formatStar).join(", ")}\n`;
-      } else {
-        prompt += `🔴 主星: (空宫)\n`;
-      }
-
-      // 辅星
-      if (palace.minorStars.length > 0) {
-        prompt += `🔵 辅星: ${palace.minorStars.map(formatStar).join(", ")}\n`;
-      } else {
-        prompt += `🔵 辅星: (空宫)\n`;
-      }
-
-      // 杂曜
-      if (palace.adjectiveStars.length > 0) {
-        prompt += `⚪ 杂曜: ${palace.adjectiveStars
-          .map(formatStar)
-          .join(", ")}\n`;
-      } else {
-        prompt += `⚪ 杂曜: (空宫)\n`;
-      }
-
-      // 神煞/流曜 (包括原局神煞 + 大限/流年流曜)
-      const otherStars = [];
-      // 原局神煞
-      otherStars.push(`长生12: ${palace.changsheng12}`);
-      otherStars.push(`博士12: ${palace.boshi12}`);
-      otherStars.push(`将前12: ${palace.jiangqian12}`);
-      otherStars.push(`岁前12: ${palace.suiqian12}`);
-
-      // 运限流曜 (从horoscope中获取)
-      // 大限流曜
-      if (horoscope.decadal?.stars?.[index]) {
-        const decStars = horoscope.decadal.stars[index];
-        if (decStars.length > 0) {
-          otherStars.push(`大限流曜: ` + decStars.map(formatStar).join(","));
-        }
-      }
-      // 流年流曜
-      if (horoscope.yearly?.stars?.[index]) {
-        const yearStars = horoscope.yearly.stars[index];
-        if (yearStars.length > 0) {
-          otherStars.push(`流年流曜: ` + yearStars.map(formatStar).join(","));
-        }
-      }
-
-      if (otherStars.length > 0) {
-        prompt += `✨ 其他神煞: ${otherStars.join(" | ")}\n`;
-      }
-
-      // 小限与大限时间 (对应UI显示)
-      if (palace.ages || palace.decadal) {
-        const limits = [];
-        if (palace.ages) limits.push(`小限: ${palace.ages.join(" ")}`);
-        if (palace.decadal?.range)
-          limits.push(`大限: ${palace.decadal.range.join(" - ")}`);
-        if (limits.length > 0) {
-          prompt += `📅 运限时间: ${limits.join(" | ")}\n`;
-        }
-      }
-    });
-  }
+  prompt += getBasePalaceDetails(horoscope);
 
   // 运限信息
   prompt += `\n## ⏳ 运限走势\n### 当前大限 (10年运)\n`;
@@ -302,34 +343,7 @@ export function buildPrompt(
     prompt += `\n## 🎯 重点关注\n命主特别想了解: "${focusArea}"\n请重点针对此领域进行深入分析。\n`;
   }
 
-  prompt += [
-    '',
-    '',
-    "---",
-    "# 📝 回复结构 (Output Format)",
-    "",
-    "请严格按照以下Markdown格式输出：",
-    "",
-    "## 1. 🔭 命盘总评：（一行字带过命盘格局）",
-    "*（用一句话概括核心格局，如“杀破狼变格”，并用心理学语言解释这种格局的性格本质。）*",
-    "",
-    "## 2. 🧬 性格画像：光辉与盲点",
-    "* **用一句话概括性格**",
-    "* **你的优势**：(结合命宫与吉星分析)",
-    "* **潜意识盲点**：(结合化忌、煞星或空宫分析，指出容易踩坑的性格特质，如“容易心软”、“过于执着细节”等)",
-    "",
-    `## 3. 🎯 ${focusArea ? "深度解答" : "深度剖析"}：你最关心的问题`,
-    "*(重点结合大限和流年，分析当前的事业/财运或感情趋势)*",
-    "* **现状诊断**：(基于流年宫位和四化)",
-    "* **未来推演**：(基于大限走势)",
-    "",
-    "## 4. 💡 大师锦囊 (Actionable Advice)",
-    "* **机遇在哪里**：(指出哪个方向或行业有利)",
-    "* **避坑指南**：(针对今年的流年煞星，给出具体生活建议，如“今年少签担保合同”、“注意呼吸道健康”)",
-    "* **开运建议**：(简单的行为建议，如“多穿亮色”、“多与属X的人合作”)",
-    "",
-    "## 5. 📜 结语",
-    "*(用温暖、鼓励的话语总结，附上一首四句定场诗)*",].join("\n");
+  prompt += getFooter(focusArea);
 
   return prompt;
 }
