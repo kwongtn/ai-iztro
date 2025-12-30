@@ -7,6 +7,7 @@ import InputForm from './components/InputForm';
 import AISettings from './components/AISettings';
 import AIInterpretation from './components/AIInterpretation';
 import dayjs from 'dayjs';
+import SavedCharts from './components/SavedCharts';
 import './ziwei-theme.css';
 import { isConfigured } from './services/aiConfig';
 import { interpretAstrolabe, buildPrompt } from './services/deepseekService';
@@ -18,6 +19,7 @@ function App() {
     gender: 'male' as 'male' | 'female',
     dateType: 'solar' as 'solar' | 'lunar',
     leap: false,
+    name: '',
   });
 
   const [showSettings, setShowSettings] = useState(false);
@@ -72,7 +74,7 @@ function App() {
         id: Date.now(),
         data: astrolabeData,
         savedAt: new Date().toISOString(),
-        name: `命盘 ${dayjs().format('YYYY-MM-DD HH:mm')}`
+        name: astrolabeData.name || `命盘 ${dayjs().format('YYYY-MM-DD HH:mm')}`
       };
       savedCharts.push(newChart);
       localStorage.setItem('ziwei_saved_charts', JSON.stringify(savedCharts));
@@ -80,6 +82,35 @@ function App() {
     } catch (e) {
       console.error('Save failed', e);
       alert('保存失败，请检查浏览器设置');
+    }
+  };
+
+  const [showSavedCharts, setShowSavedCharts] = useState(false);
+
+  const handleLoadChart = (chart: any) => {
+    setAstrolabeData({
+      ...chart.data,
+      name: chart.name // Ensure name is loaded
+    });
+    setShowSavedCharts(false);
+  };
+
+  const getSavedCharts = () => {
+    try {
+      return JSON.parse(localStorage.getItem('ziwei_saved_charts') || '[]');
+    } catch (e) {
+      return [];
+    }
+  };
+
+  const handleDeleteChart = (id: number) => {
+    if (confirm('确定要删除这个命盘吗？')) {
+      const charts = getSavedCharts();
+      const newCharts = charts.filter((c: any) => c.id !== id);
+      localStorage.setItem('ziwei_saved_charts', JSON.stringify(newCharts));
+      // Force re-render to update list
+      setShowSavedCharts(prev => !prev);
+      setTimeout(() => setShowSavedCharts(true), 0);
     }
   };
 
@@ -92,6 +123,7 @@ function App() {
       gender: data.gender,
       dateType: data.dateType,
       leap: data.leap,
+      name: data.name,
     });
     // console.log(astrolabeData);
   };
@@ -185,6 +217,8 @@ function App() {
           onFullscreen={handleFullscreen}
           onDownload={handleDownload}
           onSave={handleSave}
+          onShowSaved={() => setShowSavedCharts(true)}
+          values={astrolabeData}
         />
       </main>
 
@@ -203,6 +237,17 @@ function App() {
           error={aiResult.error}
           promptData={aiResult.promptData}
           onClose={() => setShowInterpretation(false)}
+        />
+      )}
+
+      {/* 已保存命盘列表 */}
+      {showSavedCharts && (
+        <SavedCharts
+          isOpen={showSavedCharts}
+          onClose={() => setShowSavedCharts(false)}
+          onLoad={handleLoadChart}
+          onDelete={handleDeleteChart}
+          charts={getSavedCharts()}
         />
       )}
     </div>
