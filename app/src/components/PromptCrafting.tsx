@@ -363,34 +363,122 @@ export default function PromptCrafting({ astrolabe }: PromptCraftingProps) {
                     </div>
 
                     {/* Convenience Buttons */}
-                    <div className="flex flex-wrap justify-center gap-2 w-full px-4">
-                        <button
-                            onClick={() => {
-                                const unit = mode === 'decade' ? 'year' : (mode === 'age' ? 'year' : mode === 'day' ? 'day' : mode);
-                                const val = mode === 'decade' ? 10 : 1;
-                                const prev1 = dayjs(focusDate).add(-val, unit);
-                                const next1 = dayjs(focusDate).add(val, unit);
-                                handleAddItem(prev1.toDate(), mode);
-                                handleAddItem(next1.toDate(), mode);
-                            }}
-                            className="px-3 py-1.5 text-xs bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md hover:border-blue-400 dark:hover:border-blue-500 transition-colors text-gray-600 dark:text-gray-200"
-                        >
-                            + 添加前1 & 后1
-                        </button>
-                        <button
-                            onClick={() => {
-                                const offsets = [-3, -2, -1, 1, 2, 3];
-                                offsets.forEach(off => {
+                    <div className="flex flex-col gap-2 w-full px-4">
+                        <div className="flex justify-center gap-2">
+                            <button
+                                onClick={() => {
                                     const unit = mode === 'decade' ? 'year' : (mode === 'age' ? 'year' : mode === 'day' ? 'day' : mode);
-                                    const val = mode === 'decade' ? off * 10 : off;
-                                    const d = dayjs(focusDate).add(val, unit).toDate();
-                                    handleAddItem(d, mode);
-                                });
-                            }}
-                            className="px-3 py-1.5 text-xs bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md hover:border-blue-400 dark:hover:border-blue-500 transition-colors text-gray-600 dark:text-gray-200"
-                        >
-                            + 添加前3 & 后3
-                        </button>
+                                    let lastDate = focusDate;
+                                    const newItems: PromptItem[] = [];
+
+                                    for (let i = 1; i <= 5; i++) {
+                                        const val = mode === 'decade' ? i * 10 : i;
+                                        const d = dayjs(focusDate).add(-val, unit).toDate();
+                                        const { label, content } = getPreviewData(d, mode);
+                                        newItems.push({
+                                            id: generateId(),
+                                            type: mode,
+                                            content,
+                                            label,
+                                        });
+                                        if (i === 5) lastDate = d;
+                                    }
+                                    // Add in reverse order of generation so -1 is closest to current, -5 is furthest? 
+                                    // Usually "Prev 5" means adding [Current-5, Current-4, ... Current-1] or [Current-1, ... Current-5]?
+                                    // User said: "1-5 will be added, and selection will change to 5".
+                                    // If I am at 0. Next 5 adds 1, 2, 3, 4, 5. Focus becomes 5.
+                                    // If I am at 0. Prev 5 should probably add -1, -2, -3, -4, -5. Focus becomes -5.
+                                    // Let's add them in valid time order? Or checking list order?
+                                    // "Add to list". The list is sortable. 
+                                    // I'll add them to the list. The order in the list:
+                                    // If I click Next 5: Append [1, 2, 3, 4, 5].
+                                    // If I click Prev 5: Append [-1, -2, -3, -4, -5].
+                                    // The user can reorder. I will just push them.
+                                    setItems(prev => [...prev, ...newItems]);
+                                    setFocusDate(lastDate);
+                                }}
+                                className="px-3 py-1.5 text-xs bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md hover:border-blue-400 dark:hover:border-blue-500 transition-colors text-gray-600 dark:text-gray-200"
+                            >
+                                + 前5个
+                            </button>
+                            <button
+                                onClick={() => {
+                                    const unit = mode === 'decade' ? 'year' : (mode === 'age' ? 'year' : mode === 'day' ? 'day' : mode);
+                                    let lastDate = focusDate;
+                                    const newItems: PromptItem[] = [];
+
+                                    for (let i = 1; i <= 3; i++) {
+                                        const val = mode === 'decade' ? i * 10 : i;
+                                        const d = dayjs(focusDate).add(-val, unit).toDate();
+                                        const { label, content } = getPreviewData(d, mode);
+                                        newItems.push({
+                                            id: generateId(),
+                                            type: mode,
+                                            content,
+                                            label,
+                                        });
+                                        if (i === 3) lastDate = d;
+                                    }
+                                    setItems(prev => [...prev, ...newItems]);
+                                    setFocusDate(lastDate);
+                                }}
+                                className="px-3 py-1.5 text-xs bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md hover:border-blue-400 dark:hover:border-blue-500 transition-colors text-gray-600 dark:text-gray-200"
+                            >
+                                + 前3个
+                            </button>
+                        </div>
+                        <div className="flex justify-center gap-2">
+                            <button
+                                onClick={() => {
+                                    const unit = mode === 'decade' ? 'year' : (mode === 'age' ? 'year' : mode === 'day' ? 'day' : mode);
+                                    let lastDate = focusDate;
+                                    const newItems: PromptItem[] = [];
+
+                                    for (let i = 1; i <= 3; i++) {
+                                        const val = mode === 'decade' ? i * 10 : i;
+                                        const d = dayjs(focusDate).add(val, unit).toDate();
+                                        const { label, content } = getPreviewData(d, mode);
+                                        newItems.push({
+                                            id: generateId(),
+                                            type: mode,
+                                            content,
+                                            label,
+                                        });
+                                        if (i === 3) lastDate = d;
+                                    }
+                                    setItems(prev => [...prev, ...newItems]);
+                                    setFocusDate(lastDate);
+                                }}
+                                className="px-3 py-1.5 text-xs bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md hover:border-blue-400 dark:hover:border-blue-500 transition-colors text-gray-600 dark:text-gray-200"
+                            >
+                                + 后3个
+                            </button>
+                            <button
+                                onClick={() => {
+                                    const unit = mode === 'decade' ? 'year' : (mode === 'age' ? 'year' : mode === 'day' ? 'day' : mode);
+                                    let lastDate = focusDate;
+                                    const newItems: PromptItem[] = [];
+
+                                    for (let i = 1; i <= 5; i++) {
+                                        const val = mode === 'decade' ? i * 10 : i;
+                                        const d = dayjs(focusDate).add(val, unit).toDate();
+                                        const { label, content } = getPreviewData(d, mode);
+                                        newItems.push({
+                                            id: generateId(),
+                                            type: mode,
+                                            content,
+                                            label,
+                                        });
+                                        if (i === 5) lastDate = d;
+                                    }
+                                    setItems(prev => [...prev, ...newItems]);
+                                    setFocusDate(lastDate);
+                                }}
+                                className="px-3 py-1.5 text-xs bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md hover:border-blue-400 dark:hover:border-blue-500 transition-colors text-gray-600 dark:text-gray-200"
+                            >
+                                + 后5个
+                            </button>
+                        </div>
                     </div>
 
                     {/* Main Add Button */}
