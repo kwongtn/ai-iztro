@@ -331,6 +331,29 @@ export function monthlyFormatter(horoscope: IFunctionalHoroscope, monthlyIndex: 
   return prompt.join('\n');
 }
 
+export function dailyFormatter(horoscope: IFunctionalHoroscope, dailyIndex: number) {
+  const dailyPalace = horoscope.astrolabe.palace(dailyIndex);
+  if (!dailyPalace) {
+    throw new Error("Daily palace not found");
+  }
+
+  const prompt = [
+    `- 流日位置: ${dailyPalace.name}宫`,
+    `- 流日时间: ${horoscope.lunarDate}（${horoscope.yearly.heavenlyStem}${horoscope.yearly.earthlyBranch}年${horoscope.monthly.heavenlyStem}${horoscope.monthly.earthlyBranch}月${horoscope.daily.heavenlyStem}${horoscope.daily.earthlyBranch}日）`,
+    `- 流日四化: ${mutagenFormatter(horoscope.daily.mutagen)}`,
+  ];
+
+  // 流日三方四正
+  const sp = horoscope.astrolabe.surroundedPalaces(dailyIndex);
+  if (sp) {
+    prompt.push(`- 流日三方四正:`);
+    prompt.push(getSurroundedPalacePrompt(sp));
+    prompt.push('');
+  }
+
+  return prompt.join('\n');
+}
+
 /**
  * 构建AI提示词
  */

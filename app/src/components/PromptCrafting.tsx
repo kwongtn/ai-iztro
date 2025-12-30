@@ -21,6 +21,7 @@ import {
     decadalFormatter,
     yearlyFormatter,
     monthlyFormatter,
+    dailyFormatter,
     ageFormatter,
     getSystemPrompt,
     getBaseInformationPrompt,
@@ -36,7 +37,7 @@ interface PromptCraftingProps {
 interface PromptItem {
     id: string;
     // Added 'age' type
-    type: "decade" | "year" | "month" | "age" | "base";
+    type: "decade" | "year" | "month" | "day" | "age" | "base";
     content: string;
     label: string;
     sortIndex?: number;
@@ -90,7 +91,7 @@ const SortableItem = ({
                         {item.label}
                     </span>
                     <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">
-                        {item.type === "base" ? "基础信息" : item.type === "decade" ? "大限" : item.type === "year" ? "流年" : item.type === "age" ? "小限" : "流月"}
+                        {item.type === "base" ? "基础信息" : item.type === "decade" ? "大限" : item.type === "year" ? "流年" : item.type === "age" ? "小限" : item.type === "day" ? "流日" : "流月"}
                     </span>
                 </div>
             </div>
@@ -107,7 +108,7 @@ const SortableItem = ({
 
 export default function PromptCrafting({ astrolabe }: PromptCraftingProps) {
     const [items, setItems] = useState<PromptItem[]>([]);
-    const [mode, setMode] = useState<"decade" | "year" | "month" | "age">("year");
+    const [mode, setMode] = useState<"decade" | "year" | "month" | "day" | "age">("year");
     const [focusDate, setFocusDate] = useState(new Date());
 
     // Sensors for drag and drop
@@ -137,7 +138,7 @@ export default function PromptCrafting({ astrolabe }: PromptCraftingProps) {
         return astrolabe.horoscope(date, 0); // Gender is fixed in astrolabe? standard usage
     };
 
-    const getPreviewData = (date: Date, currentMode: "decade" | "year" | "month" | "age") => {
+    const getPreviewData = (date: Date, currentMode: "decade" | "year" | "month" | "day" | "age") => {
         const h = getHoroscope(date);
         try {
             if (currentMode === "decade") {
@@ -162,6 +163,13 @@ export default function PromptCrafting({ astrolabe }: PromptCraftingProps) {
                 const label = `小限 ${nominalAge}岁 - ${palace?.name}宫`;
                 const content = `\n### 小限 (农历年运)\n` + ageFormatter(h, index);
                 return { label, content };
+            } else if (currentMode === 'day') {
+                const day = h.daily.heavenlyStem + h.daily.earthlyBranch;
+                const month = h.monthly.heavenlyStem + h.monthly.earthlyBranch;
+                const label = `流日 ${month}月${day}日 - ${h.lunarDate}`;
+                // Use daily formatter
+                const content = `\n### 流日 (日运)\n` + dailyFormatter(h, h.daily.index);
+                return { label, content };
             } else {
                 const year = h.yearly.heavenlyStem + h.yearly.earthlyBranch;
                 const month = h.monthly.heavenlyStem + h.monthly.earthlyBranch;
@@ -180,7 +188,7 @@ export default function PromptCrafting({ astrolabe }: PromptCraftingProps) {
 
     const preview = useMemo(() => getPreviewData(focusDate, mode), [focusDate, mode, astrolabe]);
 
-    const handleModeChange = (newMode: "decade" | "year" | "month" | "age") => {
+    const handleModeChange = (newMode: "decade" | "year" | "month" | "day" | "age") => {
         setMode(newMode);
         // Optionally reset focusDate to now or keep it?
         // Keep it seems better for continuity.
@@ -199,6 +207,8 @@ export default function PromptCrafting({ astrolabe }: PromptCraftingProps) {
             unit = 'year'; // Age changes yearly
         } else if (mode === 'month') {
             unit = 'month';
+        } else if (mode === 'day') {
+            unit = 'day';
         }
 
         setFocusDate(prev => dayjs(prev).add(val, unit).toDate());
@@ -301,17 +311,17 @@ export default function PromptCrafting({ astrolabe }: PromptCraftingProps) {
                 </div>
 
                 {/* Mode Selector */}
-                <div className="grid grid-cols-4 gap-2 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
-                    {(["decade", "age", "year", "month"] as const).map((m) => (
+                <div className="grid grid-cols-5 gap-2 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
+                    {(["decade", "age", "year", "month", "day"] as const).map((m) => (
                         <button
                             key={m}
                             onClick={() => handleModeChange(m)}
-                            className={`py-2 px-2 rounded-md text-sm font-medium transition-all ${mode === m
+                            className={`py-2 px-1 rounded-md text-sm font-medium transition-all truncate ${mode === m
                                 ? "bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm"
                                 : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                                 }`}
                         >
-                            {m === "decade" ? "大限" : m === "year" ? "流年" : m === "age" ? "小限" : "流月"}
+                            {m === "decade" ? "大限" : m === "year" ? "流年" : m === "age" ? "小限" : m === "month" ? "流月" : "流日"}
                         </button>
                     ))}
                 </div>
@@ -356,7 +366,7 @@ export default function PromptCrafting({ astrolabe }: PromptCraftingProps) {
                     <div className="flex flex-wrap justify-center gap-2 w-full px-4">
                         <button
                             onClick={() => {
-                                const unit = mode === 'decade' ? 'year' : (mode === 'age' ? 'year' : mode);
+                                const unit = mode === 'decade' ? 'year' : (mode === 'age' ? 'year' : mode === 'day' ? 'day' : mode);
                                 const val = mode === 'decade' ? 10 : 1;
                                 const prev1 = dayjs(focusDate).add(-val, unit);
                                 const next1 = dayjs(focusDate).add(val, unit);
@@ -371,7 +381,7 @@ export default function PromptCrafting({ astrolabe }: PromptCraftingProps) {
                             onClick={() => {
                                 const offsets = [-3, -2, -1, 1, 2, 3];
                                 offsets.forEach(off => {
-                                    const unit = mode === 'decade' ? 'year' : (mode === 'age' ? 'year' : mode);
+                                    const unit = mode === 'decade' ? 'year' : (mode === 'age' ? 'year' : mode === 'day' ? 'day' : mode);
                                     const val = mode === 'decade' ? off * 10 : off;
                                     const d = dayjs(focusDate).add(val, unit).toDate();
                                     handleAddItem(d, mode);
