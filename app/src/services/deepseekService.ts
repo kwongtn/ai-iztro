@@ -112,7 +112,7 @@ export function getBasePalaceDetails(horoscope: IFunctionalHoroscope) {
   ];
   if (astrolabe.palaces) {
     astrolabe.palaces.forEach((palace: IFunctionalPalace, index: number) => {
-      let title = `\n### 【${palace.name}${palace.name.endsWith("宫") ? "" : "宫"}】 (地支:${palace.earthlyBranch} | 天干:${palace.heavenlyStem})`;
+      let title = `\n### ${palace.heavenlyStem}${palace.earthlyBranch}【${palace.name}${palace.name.endsWith("宫") ? "" : "宫"}】`;
       if (palace.isBodyPalace) {
         title += ` (身宫)`;
       }
@@ -127,25 +127,23 @@ export function getBasePalaceDetails(horoscope: IFunctionalHoroscope) {
       // 主星
       const majorStars = palace.majorStars || [];
       if (majorStars.length > 0) {
-        prompt.push(`🔴 主星: ${majorStars.map(formatStar).join(", ")}\n`);
+        prompt.push(`🔴 主星: ${majorStars.map(formatStar).join(", ")}`);
       } else {
-        prompt.push(`🔴 主星: (空宫)\n`);
+        prompt.push(`🔴 主星: (空宫)`);
       }
 
       // 辅星
       if (palace.minorStars.length > 0) {
-        prompt.push(`🔵 辅星: ${palace.minorStars.map(formatStar).join(", ")}\n`);
+        prompt.push(`🔵 辅星: ${palace.minorStars.map(formatStar).join(", ")}`);
       } else {
-        prompt.push(`🔵 辅星: (空宫)\n`);
+        prompt.push(`🔵 辅星: (空宫)`);
       }
 
       // 杂曜
       if (palace.adjectiveStars.length > 0) {
-        prompt.push(`⚪ 杂曜: ${palace.adjectiveStars
-          .map(formatStar)
-          .join(", ")}\n`);
+        prompt.push(`⚪ 杂曜: ${palace.adjectiveStars.map(formatStar).join(", ")}`);
       } else {
-        prompt.push(`⚪ 杂曜: (空宫)\n`);
+        prompt.push(`⚪ 杂曜: (空宫)`);
       }
 
       // 神煞/流曜 (包括原局神煞 + 大限/流年流曜)
@@ -173,22 +171,17 @@ export function getBasePalaceDetails(horoscope: IFunctionalHoroscope) {
       }
 
       if (otherStars.length > 0) {
-        prompt.push(`✨ 其他神煞: ${otherStars.join(" | ")}\n`);
+        prompt.push(`✨ 其他神煞: ${otherStars.join(" | ")}`);
       }
 
       // 小限与大限时间 (对应UI显示)
-      if (palace.ages || palace.decadal) {
-        const limits = [];
-        if (palace.ages) limits.push(`小限: ${palace.ages.join(" ")}`);
-        if (palace.decadal?.range)
-          limits.push(`大限: ${palace.decadal.range.join(" - ")}`);
-        if (limits.length > 0) {
-          prompt.push(`📅 运限时间: ${limits.join(" | ")}\n`);
-        }
-      }
-    });
-  }
+      prompt.push(`📅 运限时间: `);
+      prompt.push(`  * 小限: ${palace.ages.join(" ")}`);
+      prompt.push(`  * 大限: ${palace.decadal.range.join(" - ")}`);
 
+    });
+    return prompt.join("\n");
+  }
 }
 
 export function getPalacesPrompt(astrolabe: IFunctionalAstrolabe) {
@@ -211,6 +204,7 @@ export function getPalacesPrompt(astrolabe: IFunctionalAstrolabe) {
     const shenIndex = shenPalace.index;
     const sp = astrolabe.surroundedPalaces(shenIndex);
     prompt.push(
+      '',
       `## 🧘 身宫格局 (后天/中年后)`,
       `身宫代表后天发展和中年后的运势方向：`,
       `- [身宫] (${sp.target.heavenlyStem}${sp.target.earthlyBranch}): ${formatStarsSimple(sp.target)}`,
@@ -263,6 +257,30 @@ export function decadalFormatter(horoscope: IFunctionalHoroscope, decadalIndex: 
   return prompt.join('\n');
 }
 
+export function ageFormatter(horoscope: IFunctionalHoroscope, index: number) {
+  const agePalace = horoscope.astrolabe.palace(index);
+  if (!agePalace) {
+    throw new Error("Age palace not found");
+  }
+
+  const prompt = [
+    `- 大限: ${horoscope.astrolabe.palace(horoscope.decadal.index)?.name ?? ""}宫`,
+    `- 小限位置: ${agePalace.name}宫`,
+    `- 小限虚岁: ${horoscope.age.nominalAge}`,
+    `- 小限四化: ${mutagenFormatter(horoscope.decadal.mutagen)}`,
+  ];
+
+  // 小限三方四正
+  const sp = horoscope.astrolabe.surroundedPalaces(index);
+  if (sp) {
+    prompt.push(`- 小限三方四正:`);
+    prompt.push(getSurroundedPalacePrompt(sp));
+    prompt.push('');
+  }
+
+  return prompt.join('\n');
+}
+
 export function yearlyFormatter(horoscope: IFunctionalHoroscope, yearlyIndex: number) {
   const yearlyPalace = horoscope.astrolabe.palace(yearlyIndex);
   if (!yearlyPalace) {
@@ -296,8 +314,9 @@ export function monthlyFormatter(horoscope: IFunctionalHoroscope, monthlyIndex: 
 
   const prompt = [
     `- 流月位置: ${monthlyPalace.name}宫`,
-    `- 流月时间: ${horoscope.monthly.heavenlyStem}${horoscope.monthly.earthlyBranch
-    }年${horoscope.lunarDate.slice(5, 7)}`,
+    `- 流月时间: ${horoscope.yearly.heavenlyStem}${horoscope.yearly.earthlyBranch
+    }年${horoscope.monthly.heavenlyStem}${horoscope.monthly.earthlyBranch
+    }（${horoscope.lunarDate.slice(5, 7)}）`,
     `- 流月四化: ${mutagenFormatter(horoscope.monthly.mutagen)}`,
   ];
 
@@ -330,13 +349,16 @@ export function buildPrompt(
   prompt += getBasePalaceDetails(horoscope);
 
   // 运限信息
-  prompt += `\n## ⏳ 运限走势\n### 当前大限 (10年运)\n`;
+  prompt += `\n\n## ⏳ 运限走势\n### 当前大限 (十年运)\n`;
   prompt += decadalFormatter(horoscope, horoscope.decadal.index);
 
-  prompt += `\n### 当前流年 (1年运: ${horoscope.yearly.heavenlyStem}${horoscope.yearly.earthlyBranch}年 - 公历${new Date().getFullYear()}年)\n`;
+  prompt += `\n### 当前小限 (农历年运)\n`;
+  prompt += ageFormatter(horoscope, horoscope.age.index);
+
+  prompt += `\n### 当前流年 (年运: ${horoscope.yearly.heavenlyStem}${horoscope.yearly.earthlyBranch}年 - 公历${new Date().getFullYear()}年)\n`;
   prompt += yearlyFormatter(horoscope, horoscope.yearly.index);
 
-  prompt += `\n### 当前流月 (1月运)\n`;
+  prompt += `\n### 当前流月 (月运)\n`;
   prompt += monthlyFormatter(horoscope, horoscope.monthly.index);
 
   if (focusArea) {

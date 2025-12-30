@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { toPng } from 'html-to-image';
 import { Iztrolabe } from 'react-iztro';
 import { astro } from 'iztro';
@@ -11,6 +11,7 @@ import SavedCharts from './components/SavedCharts';
 import './ziwei-theme.css';
 import { isConfigured } from './services/aiConfig';
 import { interpretAstrolabe, buildPrompt } from './services/deepseekService';
+import PromptCrafting from './components/PromptCrafting';
 
 function App() {
   const [astrolabeData, setAstrolabeData] = useState({
@@ -194,12 +195,23 @@ function App() {
     }
   };
 
+  // Import dynamically or normally. Since we are in the same bundle, normal import.
+  // We need to pass the astrolabe instance to PromptCrafting.
+  // Current logic in handleAIInterpret creates it on the fly.
+  // We should memoize it so it updates when astrolabeData updates.
+  const astrolabeInstance = useMemo(() => {
+    const inputDate = dayjs(astrolabeData.date).format('YYYY-MM-DD');
+    return astrolabeData.dateType === 'solar'
+      ? astro.bySolar(inputDate, astrolabeData.time, astrolabeData.gender)
+      : astro.byLunar(inputDate, astrolabeData.time, astrolabeData.gender, astrolabeData.leap);
+  }, [astrolabeData]);
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col font-sans transition-colors duration-200">
       <Header />
       <main className="flex-1 flex flex-col md:flex-row md:overflow-hidden relative">
-        <div className="flex-1 p-4 md:p-8 pb-20 md:pb-8 md:overflow-auto flex justify-center items-start md:items-center">
-          <div ref={astrolabeRef} className="w-full max-w-5xl shadow-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-0 md:p-1">
+        <div className="flex-1 p-4 md:p-8 pb-20 md:pb-8 md:overflow-auto flex flex-col items-center gap-8">
+          <div ref={astrolabeRef} className="w-full max-w-5xl shadow-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-0 md:p-1 flex-shrink-0">
             <Iztrolabe
               birthday={astrolabeData.date}
               birthTime={astrolabeData.time}
@@ -208,6 +220,10 @@ function App() {
               isLeapMonth={astrolabeData.leap}
               horoscopeDate={new Date()}
             />
+          </div>
+
+          <div className="w-full max-w-5xl">
+            <PromptCrafting astrolabe={astrolabeInstance} />
           </div>
         </div>
         <InputForm
