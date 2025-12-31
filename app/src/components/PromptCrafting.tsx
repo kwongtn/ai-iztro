@@ -7,6 +7,7 @@ import {
     PointerSensor,
     useSensor,
     useSensors,
+    DragOverlay,
 } from "@dnd-kit/core";
 import {
     arrayMove,
@@ -29,15 +30,14 @@ import {
     getFooter,
     getBasePalaceDetails,
 } from "../services/deepseekService";
-import { SeparatorHorizontal, Trash2, GripVertical, ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
+import { SeparatorHorizontal, Trash2, GripVertical, ChevronLeft, ChevronRight, RotateCcw, Plus } from "lucide-react";
 
 interface PromptCraftingProps {
     astrolabe: IFunctionalAstrolabe;
 }
 interface PromptItem {
     id: string;
-    // Added 'age' type
-    type: "decade" | "year" | "month" | "day" | "age" | "base";
+    type: "decade" | "year" | "month" | "day" | "age" | "system" | "base_info" | "palaces" | "details" | "footer";
     content: string;
     label: string;
     sortIndex?: number;
@@ -50,10 +50,12 @@ const SortableItem = ({
     id,
     item,
     onRemove,
+    dragEnabled = true,
 }: {
     id: string;
     item: PromptItem;
     onRemove: (id: string) => void;
+    dragEnabled?: boolean;
 }) => {
     const {
         attributes,
@@ -62,13 +64,29 @@ const SortableItem = ({
         transform,
         transition,
         isDragging,
-    } = useSortable({ id });
+    } = useSortable({ id, disabled: !dragEnabled });
 
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,
         zIndex: isDragging ? 100 : "auto",
         opacity: isDragging ? 0.5 : 1,
+    };
+
+    const getTypeLabel = (type: PromptItem["type"]) => {
+        switch (type) {
+            case "system": return "系统提示词";
+            case "base_info": return "基础信息";
+            case "palaces": return "三方四正";
+            case "details": return "十二宫详情";
+            case "decade": return "大限";
+            case "year": return "流年";
+            case "age": return "小限";
+            case "month": return "流月";
+            case "day": return "流日";
+            case "footer": return "结尾";
+            default: return type;
+        }
     };
 
     return (
@@ -79,19 +97,23 @@ const SortableItem = ({
                 }`}
         >
             <div className="flex items-center gap-3 overflow-hidden">
-                <div
-                    {...attributes}
-                    {...listeners}
-                    className="cursor-move text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
-                >
-                    <GripVertical size={16} />
-                </div>
+                {dragEnabled ? (
+                    <div
+                        {...attributes}
+                        {...listeners}
+                        className="cursor-move text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                    >
+                        <GripVertical size={16} />
+                    </div>
+                ) : (
+                    <div className="w-4 h-4" /> // Spacer
+                )}
                 <div className="flex flex-col">
                     <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                         {item.label}
                     </span>
                     <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">
-                        {item.type === "base" ? "基础信息" : item.type === "decade" ? "大限" : item.type === "year" ? "流年" : item.type === "age" ? "小限" : item.type === "day" ? "流日" : "流月"}
+                        {getTypeLabel(item.type)}
                     </span>
                 </div>
             </div>
@@ -123,30 +145,17 @@ export default function PromptCrafting({ astrolabe }: PromptCraftingProps) {
         })
     );
 
-    // Initialize with Base Info if empty?
-    // Let's verify standard behavior. User might want to start fresh.
-    // But usually we need the base chart info.
-    // We'll add a "Add Base Info" button or check if we should default it.
-    useEffect(() => {
-        // Optional: Add base info by default if list is empty on mount?
-        // For now, let's leave it empty or user manually adds everything.
-        // The request says "list of elements that the user had selected".
-        // I will add a special "Base Info" convenience button or just insert it at the start.
-    }, []);
-
     const getHoroscope = (date: Date) => {
-        return astrolabe.horoscope(date, 0); // Gender is fixed in astrolabe? standard usage
+        return astrolabe.horoscope(date, 0);
     };
 
     const getPreviewData = (date: Date, currentMode: "decade" | "year" | "month" | "day" | "age") => {
         const h = getHoroscope(date);
         try {
             if (currentMode === "decade") {
-                // Find which decade we are in
                 const index = h.decadal.index;
                 const decadalPalace = h.astrolabe.palace(index);
                 const range = decadalPalace?.decadal.range ?? ["", ""];
-
                 const label = `大限 ${range.join("-")} (虚岁) - ${decadalPalace?.name}`;
                 const content = `\n### 大限 (10年运)\n` + decadalFormatter(h, index);
                 return { label, content };
@@ -167,7 +176,6 @@ export default function PromptCrafting({ astrolabe }: PromptCraftingProps) {
                 const day = h.daily.heavenlyStem + h.daily.earthlyBranch;
                 const month = h.monthly.heavenlyStem + h.monthly.earthlyBranch;
                 const label = `流日 ${month}月${day}日 - ${h.lunarDate}`;
-                // Use daily formatter
                 const content = `\n### 流日 (日运)\n` + dailyFormatter(h, h.daily.index);
                 return { label, content };
             } else {
@@ -176,7 +184,6 @@ export default function PromptCrafting({ astrolabe }: PromptCraftingProps) {
                 const lunarMonth = h.lunarDate.slice(5, 7);
                 const solarDate = h.solarDate.split("-");
                 const solarMonth = solarDate[0] + "-" + solarDate[1].padStart(2, "0");
-
                 const label = `流月 ${year}年${month}月 (${lunarMonth}) - ${solarMonth}`;
                 const content = `\n### 流月 (1月运)\n` + monthlyFormatter(h, h.monthly.index);
                 return { label, content };
@@ -190,27 +197,16 @@ export default function PromptCrafting({ astrolabe }: PromptCraftingProps) {
 
     const handleModeChange = (newMode: "decade" | "year" | "month" | "day" | "age") => {
         setMode(newMode);
-        // Optionally reset focusDate to now or keep it?
-        // Keep it seems better for continuity.
     };
 
     const shiftDate = (amount: number) => {
         let unit: dayjs.ManipulateType = 'year';
         let val = amount;
-
-        if (mode === 'decade') {
-            unit = 'year';
-            val = amount * 10;
-        } else if (mode === 'year') {
-            unit = 'year';
-        } else if (mode === 'age') {
-            unit = 'year'; // Age changes yearly
-        } else if (mode === 'month') {
-            unit = 'month';
-        } else if (mode === 'day') {
-            unit = 'day';
-        }
-
+        if (mode === 'decade') { unit = 'year'; val = amount * 10; }
+        else if (mode === 'year') { unit = 'year'; }
+        else if (mode === 'age') { unit = 'year'; }
+        else if (mode === 'month') { unit = 'month'; }
+        else if (mode === 'day') { unit = 'day'; }
         setFocusDate(prev => dayjs(prev).add(val, unit).toDate());
     };
 
@@ -218,72 +214,118 @@ export default function PromptCrafting({ astrolabe }: PromptCraftingProps) {
         const { label, content } = getPreviewData(date, currentMode);
         setItems((prev) => [
             ...prev,
-            {
-                id: generateId(),
-                type: currentMode,
-                content,
-                label,
-            },
+            { id: generateId(), type: currentMode, content, label },
         ]);
     };
 
-    // Add Base Info Helper
-    const hasBaseInfo = items.some(i => i.type === 'base');
-    const toggleBaseInfo = () => {
-        if (hasBaseInfo) {
-            setItems(prev => prev.filter(i => i.type !== 'base'));
-        } else {
-            const sys = getSystemPrompt();
-            const info = getBaseInformationPrompt(astrolabe);
-            const palaces = getPalacesPrompt(astrolabe);
-            const h = astrolabe.horoscope(new Date(), 0);
-            const details = getBasePalaceDetails(h);
+    const removeItem = (id: string) => {
+        setItems(prev => prev.filter(i => i.id !== id));
+    };
 
-            // We might want to separate these?
-            // For simplicity, bundle them as "Base Info"
-            const content = sys + '\n' + info + '\n' + palaces + '\n' + details;
+    const addSpecialItem = (type: "system" | "base_info" | "palaces" | "details" | "footer") => {
+        if (items.some(i => i.type === type)) return;
 
-            setItems(prev => [{
-                id: generateId(),
-                type: 'base',
-                content,
-                label: '基础命盘信息 (系统提示词 + 命盘 + 三方四正)'
-            }, ...prev]);
+        let content = "";
+        let label = "";
+
+        switch (type) {
+            case "system":
+                content = getSystemPrompt();
+                label = "系统提示词 (System Prompt)";
+                break;
+            case "base_info":
+                content = getBaseInformationPrompt(astrolabe);
+                label = "基本信息 (性别/生肖/局数)";
+                break;
+            case "palaces":
+                content = getPalacesPrompt(astrolabe);
+                label = "三方四正 (核心格局)";
+                break;
+            case "details":
+                const h = astrolabe.horoscope(new Date(), 0);
+                content = getBasePalaceDetails(h);
+                label = "十二宫详细信息";
+                break;
+            case "footer":
+                content = getFooter();
+                label = "输出要求 (Footer)";
+                break;
         }
-    }
 
-    // Drag handlers
+        setItems(prev => [...prev, { id: generateId(), type, content, label }]);
+    };
+
+    const addBatchItems = (count: number) => {
+        const unit = mode === 'decade' ? 'year' : (mode === 'age' ? 'year' : mode === 'day' ? 'day' : mode);
+        let lastDate = focusDate;
+        const newItems: PromptItem[] = [];
+        const isForward = count > 0;
+        const absCount = Math.abs(count);
+
+        for (let i = 1; i <= absCount; i++) {
+            const val = mode === 'decade' ? i * 10 : i;
+            const d = dayjs(focusDate).add(isForward ? val : -val, unit).toDate();
+            const { label, content } = getPreviewData(d, mode);
+            newItems.push({
+                id: generateId(),
+                type: mode,
+                content,
+                label,
+            });
+            if (i === absCount) lastDate = d;
+        }
+
+        // If going backwards, we typically want them in reverse chronological order in the list? 
+        // Or chronological?
+        // If I say "Previous 3", and I am at 2024. I want 2023, 2022, 2021.
+        // The loop above generates 2023 (i=1), 2022 (i=2), 2021 (i=3).
+        // If I just push them, they will appear as [2023, 2022, 2021].
+        // Usually we want chronological in the list: 2021, 2022, 2023.
+        // So if backwards, reverse the batch?
+        // But the user's previous code just pushed them. I'll stick to pushing them for now, 
+        // but maybe reverse if it's backwards to make it logical?
+        // Lets just push them as they are generated (closest to furthest) or furthest to closest?
+        // Previous implementation: 
+        // Prev 5 loop i=1 to 5. d = add(-val). push. 
+        // So it pushed [Current-1, Current-2, Current-3...].
+        // I will keep that behavior.
+
+        setItems(prev => [...prev, ...newItems]);
+        setFocusDate(lastDate);
+    };
+
     const handleDragEnd = (event: any) => {
         const { active, over } = event;
-
         if (active.id !== over.id) {
             setItems((items) => {
                 const oldIndex = items.findIndex((item) => item.id === active.id);
                 const newIndex = items.findIndex((item) => item.id === over.id);
-
                 return arrayMove(items, oldIndex, newIndex);
             });
         }
     };
 
-    const fullPrompt = useMemo(() => {
-        const body = items.map((i) => i.content).join("\n");
-        const footer = getFooter();
-        // If base info is not in items, should we prepend it? 
-        // The user requirement implies manual crafting.
-        // But logically, we need the base info.
-        // I made a button to add Base Info.
-        // I will append footer always? Or is footer component dependent?
-        // deepseekService builds prompt as: System + Base + Palaces + Times + Footer.
-        // My 'base' item covers System + Base + Palaces.
-        // So if users adds 'base', we are good.
-        // The Footer is usually needed for the LLM to know what format to reply.
-        // I will append Footer automatically at the end of the text area if not present?
-        // Or just treat it as a hidden suffix? 
-        // "Text area will display the AI prompt". 
-        // I'll just append it to the text area value.
-        return body + "\n" + footer;
+    // Split items for rendering
+    const staticTopItems = useMemo(() => {
+        const order = ["system", "base_info", "palaces", "details"];
+        return items
+            .filter(i => order.includes(i.type))
+            .sort((a, b) => order.indexOf(a.type) - order.indexOf(b.type));
     }, [items]);
+
+    const dynamicItems = useMemo(() => {
+        return items.filter(i => !["system", "base_info", "palaces", "details", "footer"].includes(i.type));
+    }, [items]);
+
+    const staticBottomItems = useMemo(() => {
+        return items.filter(i => i.type === "footer");
+    }, [items]);
+
+    const fullPrompt = useMemo(() => {
+        // Construct prompt in parsed order
+        const all = [...staticTopItems, ...dynamicItems, ...staticBottomItems];
+        return all.map((i) => i.content).join("\n");
+    }, [staticTopItems, dynamicItems, staticBottomItems]);
 
     return (
         <div className="flex flex-col gap-6 p-4 bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-100 dark:border-gray-800">
@@ -294,20 +336,45 @@ export default function PromptCrafting({ astrolabe }: PromptCraftingProps) {
                     <span className="bg-gradient-to-r from-purple-500 to-blue-500 text-transparent bg-clip-text">AI 提示词工坊</span>
                 </h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    自定义组合大限、流年、流月信息，生成专属分析提示词
+                    添加基础元数据，组合流运信息，生成精准提示词
                 </p>
             </div>
+
+            {/* Base Info Helpers */}
+            <section className="space-y-2">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest">基础元数据</div>
+                <div className="flex flex-wrap gap-2">
+                    {[
+                        { id: 'system', name: '系统提示词' },
+                        { id: 'base_info', name: '基本信息' },
+                        { id: 'palaces', name: '三方四正' },
+                        { id: 'details', name: '十二宫' },
+                        { id: 'footer', name: '结尾要求' }
+                    ].map(btn => {
+                        const exists = items.some(i => i.type === btn.id);
+                        return (
+                            <button
+                                key={btn.id}
+                                onClick={() => exists ? removeItem(items.find(i => i.type === btn.id)!.id) : addSpecialItem(btn.id as any)}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${exists
+                                    ? 'bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800'
+                                    : 'bg-gray-100 text-gray-600 border border-transparent hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'
+                                    }`}
+                            >
+                                {exists ? <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" /> : <Plus size={12} />}
+                                {btn.name}
+                            </button>
+                        )
+                    })}
+                </div>
+            </section>
+
+            <SeparatorHorizontal className="text-gray-100 dark:text-gray-800" />
 
             {/* Prompt Crafting Section */}
             <section className="space-y-4">
                 <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">选择时间范围</h3>
-                    <button
-                        onClick={toggleBaseInfo}
-                        className={`text-xs px-3 py-1 rounded-full border transition-colors ${hasBaseInfo ? 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800' : 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
-                    >
-                        {hasBaseInfo ? '已包含基础信息' : '+ 添加基础信息'}
-                    </button>
+                    <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">流运信息选择</h3>
                 </div>
 
                 {/* Mode Selector */}
@@ -366,114 +433,26 @@ export default function PromptCrafting({ astrolabe }: PromptCraftingProps) {
                     <div className="flex flex-col gap-2 w-full px-4">
                         <div className="flex justify-center gap-2">
                             <button
-                                onClick={() => {
-                                    const unit = mode === 'decade' ? 'year' : (mode === 'age' ? 'year' : mode === 'day' ? 'day' : mode);
-                                    let lastDate = focusDate;
-                                    const newItems: PromptItem[] = [];
-
-                                    for (let i = 1; i <= 5; i++) {
-                                        const val = mode === 'decade' ? i * 10 : i;
-                                        const d = dayjs(focusDate).add(-val, unit).toDate();
-                                        const { label, content } = getPreviewData(d, mode);
-                                        newItems.push({
-                                            id: generateId(),
-                                            type: mode,
-                                            content,
-                                            label,
-                                        });
-                                        if (i === 5) lastDate = d;
-                                    }
-                                    // Add in reverse order of generation so -1 is closest to current, -5 is furthest? 
-                                    // Usually "Prev 5" means adding [Current-5, Current-4, ... Current-1] or [Current-1, ... Current-5]?
-                                    // User said: "1-5 will be added, and selection will change to 5".
-                                    // If I am at 0. Next 5 adds 1, 2, 3, 4, 5. Focus becomes 5.
-                                    // If I am at 0. Prev 5 should probably add -1, -2, -3, -4, -5. Focus becomes -5.
-                                    // Let's add them in valid time order? Or checking list order?
-                                    // "Add to list". The list is sortable. 
-                                    // I'll add them to the list. The order in the list:
-                                    // If I click Next 5: Append [1, 2, 3, 4, 5].
-                                    // If I click Prev 5: Append [-1, -2, -3, -4, -5].
-                                    // The user can reorder. I will just push them.
-                                    setItems(prev => [...prev, ...newItems]);
-                                    setFocusDate(lastDate);
-                                }}
+                                onClick={() => addBatchItems(-5)}
                                 className="px-3 py-1.5 text-xs bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md hover:border-blue-400 dark:hover:border-blue-500 transition-colors text-gray-600 dark:text-gray-200"
                             >
                                 + 前5个
                             </button>
                             <button
-                                onClick={() => {
-                                    const unit = mode === 'decade' ? 'year' : (mode === 'age' ? 'year' : mode === 'day' ? 'day' : mode);
-                                    let lastDate = focusDate;
-                                    const newItems: PromptItem[] = [];
-
-                                    for (let i = 1; i <= 3; i++) {
-                                        const val = mode === 'decade' ? i * 10 : i;
-                                        const d = dayjs(focusDate).add(-val, unit).toDate();
-                                        const { label, content } = getPreviewData(d, mode);
-                                        newItems.push({
-                                            id: generateId(),
-                                            type: mode,
-                                            content,
-                                            label,
-                                        });
-                                        if (i === 3) lastDate = d;
-                                    }
-                                    setItems(prev => [...prev, ...newItems]);
-                                    setFocusDate(lastDate);
-                                }}
+                                onClick={() => addBatchItems(-3)}
                                 className="px-3 py-1.5 text-xs bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md hover:border-blue-400 dark:hover:border-blue-500 transition-colors text-gray-600 dark:text-gray-200"
                             >
                                 + 前3个
                             </button>
-                        </div>
-                        <div className="flex justify-center gap-2">
+                            <span>|</span>
                             <button
-                                onClick={() => {
-                                    const unit = mode === 'decade' ? 'year' : (mode === 'age' ? 'year' : mode === 'day' ? 'day' : mode);
-                                    let lastDate = focusDate;
-                                    const newItems: PromptItem[] = [];
-
-                                    for (let i = 1; i <= 3; i++) {
-                                        const val = mode === 'decade' ? i * 10 : i;
-                                        const d = dayjs(focusDate).add(val, unit).toDate();
-                                        const { label, content } = getPreviewData(d, mode);
-                                        newItems.push({
-                                            id: generateId(),
-                                            type: mode,
-                                            content,
-                                            label,
-                                        });
-                                        if (i === 3) lastDate = d;
-                                    }
-                                    setItems(prev => [...prev, ...newItems]);
-                                    setFocusDate(lastDate);
-                                }}
+                                onClick={() => addBatchItems(3)}
                                 className="px-3 py-1.5 text-xs bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md hover:border-blue-400 dark:hover:border-blue-500 transition-colors text-gray-600 dark:text-gray-200"
                             >
                                 + 后3个
                             </button>
                             <button
-                                onClick={() => {
-                                    const unit = mode === 'decade' ? 'year' : (mode === 'age' ? 'year' : mode === 'day' ? 'day' : mode);
-                                    let lastDate = focusDate;
-                                    const newItems: PromptItem[] = [];
-
-                                    for (let i = 1; i <= 5; i++) {
-                                        const val = mode === 'decade' ? i * 10 : i;
-                                        const d = dayjs(focusDate).add(val, unit).toDate();
-                                        const { label, content } = getPreviewData(d, mode);
-                                        newItems.push({
-                                            id: generateId(),
-                                            type: mode,
-                                            content,
-                                            label,
-                                        });
-                                        if (i === 5) lastDate = d;
-                                    }
-                                    setItems(prev => [...prev, ...newItems]);
-                                    setFocusDate(lastDate);
-                                }}
+                                onClick={() => addBatchItems(5)}
                                 className="px-3 py-1.5 text-xs bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md hover:border-blue-400 dark:hover:border-blue-500 transition-colors text-gray-600 dark:text-gray-200"
                             >
                                 + 后5个
@@ -484,17 +463,16 @@ export default function PromptCrafting({ astrolabe }: PromptCraftingProps) {
                     {/* Main Add Button */}
                     <button
                         onClick={() => handleAddItem(focusDate, mode)}
-                        className="w-4/5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow-md shadow-blue-500/20 transition-all active:scale-95"
+                        className="w-4/5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow-md shadow-blue-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
                     >
-                        添加到列表
+                        <Plus size={18} />
+                        添加 {preview.label.split(' ')[0]}
                     </button>
                 </div>
             </section>
 
-            <SeparatorHorizontal className="text-gray-200 dark:text-gray-700 w-full" />
-
             {/* List Section */}
-            <section className="flex-1 min-h-[200px] flex flex-col">
+            <section className="flex-1 flex flex-col">
                 <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex justify-between items-center">
                     <span>已选项目 ({items.length})</span>
                     {items.length > 0 && (
@@ -504,25 +482,35 @@ export default function PromptCrafting({ astrolabe }: PromptCraftingProps) {
                     )}
                 </h3>
 
-                <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900/50 rounded-lg p-2 border border-gray-100 dark:border-gray-800 min-h-[150px]">
+                <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900/50 rounded-lg p-2 border border-gray-100 dark:border-gray-800 max-h-[400px]">
+                    {/* Top Static Items */}
+                    {staticTopItems.map(item => (
+                        <SortableItem key={item.id} id={item.id} item={item} onRemove={removeItem} dragEnabled={false} />
+                    ))}
+
                     <DndContext
                         sensors={sensors}
                         collisionDetection={closestCenter}
                         onDragEnd={handleDragEnd}
                     >
-                        <SortableContext items={items} strategy={verticalListSortingStrategy}>
-                            {items.length === 0 ? (
-                                <div className="h-full flex flex-col items-center justify-center text-gray-400 text-sm">
-                                    <p>列表为空</p>
-                                    <p className="text-xs mt-1">请从上方添加内容</p>
+                        <SortableContext items={dynamicItems} strategy={verticalListSortingStrategy}>
+                            {dynamicItems.length === 0 && staticTopItems.length === 0 && staticBottomItems.length === 0 ? (
+                                <div className="h-full py-8 flex flex-col items-center justify-center text-gray-400 text-sm">
+                                    <p>暂无内容</p>
+                                    <p className="text-xs mt-1">请从上方添加基础信息或流运</p>
                                 </div>
                             ) : (
-                                items.map(item => (
-                                    <SortableItem key={item.id} id={item.id} item={item} onRemove={(id) => setItems(prev => prev.filter(x => x.id !== id))} />
+                                dynamicItems.map(item => (
+                                    <SortableItem key={item.id} id={item.id} item={item} onRemove={removeItem} />
                                 ))
                             )}
                         </SortableContext>
                     </DndContext>
+
+                    {/* Bottom Static Items */}
+                    {staticBottomItems.map(item => (
+                        <SortableItem key={item.id} id={item.id} item={item} onRemove={removeItem} dragEnabled={false} />
+                    ))}
                 </div>
             </section>
 
@@ -540,7 +528,8 @@ export default function PromptCrafting({ astrolabe }: PromptCraftingProps) {
                 <textarea
                     readOnly
                     value={fullPrompt}
-                    className="w-full h-[300px] p-3 text-sm font-mono bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-y text-gray-800 dark:text-gray-200"
+                    rows={50}
+                    className="w-full text-sm font-mono bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-y text-gray-800 dark:text-gray-200"
                 />
             </section>
 
