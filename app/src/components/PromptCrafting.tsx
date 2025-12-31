@@ -30,7 +30,6 @@ import {
   getBasePalaceDetails,
 } from "../services/deepseekService";
 import {
-  SeparatorHorizontal,
   Trash2,
   GripVertical,
   ChevronLeft,
@@ -164,6 +163,24 @@ export default function PromptCrafting({ astrolabe }: PromptCraftingProps) {
   );
   const [focusDate, setFocusDate] = useState(new Date());
 
+  // Check if focusDate is effectively "current" based on mode
+  const isCurrent = useMemo(() => {
+    const now = new Date();
+    const focus = focusDate;
+
+    // Compare based on the granularity of the current mode
+    if (mode === "day") {
+      // Same day
+      return dayjs(focus).isSame(now, "day");
+    } else if (mode === "month") {
+      // Same month
+      return dayjs(focus).isSame(now, "month");
+    } else {
+      // For year, age, decade - same year
+      return dayjs(focus).isSame(now, "year");
+    }
+  }, [focusDate, mode]);
+
   // Sensors for drag and drop
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -185,6 +202,14 @@ export default function PromptCrafting({ astrolabe }: PromptCraftingProps) {
     currentMode: "decade" | "year" | "month" | "day" | "age",
   ) => {
     const h = getHoroscope(date);
+    // Format solarDate with padded month and day
+    const formatSolarDate = (solarDate: string) => {
+      const parts = solarDate.split("-");
+      if (parts.length === 3) {
+        return `${parts[0]}-${parts[1].padStart(2, "0")}-${parts[2].padStart(2, "0")}`;
+      }
+      return solarDate;
+    };
     try {
       if (currentMode === "decade") {
         const index = h.decadal.index;
@@ -192,7 +217,8 @@ export default function PromptCrafting({ astrolabe }: PromptCraftingProps) {
         const range = decadalPalace?.decadal.range ?? ["", ""];
         const label = `大限 ${range.join("-")} (虚岁) - ${decadalPalace?.name}`;
         const content = `\n### 大限 (10年运)\n` + decadalFormatter(h, index);
-        return { label, content };
+        const sublabel = formatSolarDate(h.solarDate);
+        return { label, content, sublabel };
       } else if (currentMode === "year") {
         const year = h.yearly.heavenlyStem + h.yearly.earthlyBranch;
         const nominalAge = h.age.nominalAge;
@@ -200,21 +226,24 @@ export default function PromptCrafting({ astrolabe }: PromptCraftingProps) {
         const content =
           `\n### 流年 (1年运: ${year}年)\n` +
           yearlyFormatter(h, h.yearly.index);
-        return { label, content };
+        const sublabel = formatSolarDate(h.solarDate);
+        return { label, content, sublabel };
       } else if (currentMode === "age") {
         const nominalAge = h.age.nominalAge;
         const index = h.age.index;
         const palace = h.astrolabe.palace(index);
         const label = `小限 ${nominalAge}岁 - ${palace?.name}宫`;
         const content = `\n### 小限 (农历年运)\n` + ageFormatter(h, index);
-        return { label, content };
+        const sublabel = formatSolarDate(h.solarDate);
+        return { label, content, sublabel };
       } else if (currentMode === "day") {
         const day = h.daily.heavenlyStem + h.daily.earthlyBranch;
         const month = h.monthly.heavenlyStem + h.monthly.earthlyBranch;
         const label = `流日 ${month}月${day}日 - ${h.lunarDate}`;
         const content =
           `\n### 流日 (日运)\n` + dailyFormatter(h, h.daily.index);
-        return { label, content };
+        const sublabel = formatSolarDate(h.solarDate);
+        return { label, content, sublabel };
       } else {
         const year = h.yearly.heavenlyStem + h.yearly.earthlyBranch;
         const month = h.monthly.heavenlyStem + h.monthly.earthlyBranch;
@@ -224,10 +253,15 @@ export default function PromptCrafting({ astrolabe }: PromptCraftingProps) {
         const label = `流月 ${year}年${month}月 (${lunarMonth}) - ${solarMonth}`;
         const content =
           `\n### 流月 (1月运)\n` + monthlyFormatter(h, h.monthly.index);
-        return { label, content };
+        const sublabel = formatSolarDate(h.solarDate);
+        return { label, content, sublabel };
       }
     } catch (e) {
-      return { label: "Error", content: "Error generating content" };
+      return {
+        label: "Error",
+        content: "Error generating content",
+        sublabel: "",
+      };
     }
   };
 
@@ -494,7 +528,12 @@ export default function PromptCrafting({ astrolabe }: PromptCraftingProps) {
 
             <button
               onClick={() => setFocusDate(new Date())}
-              className="rounded-full bg-blue-50 px-4 py-1.5 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40"
+              disabled={isCurrent}
+              className={`rounded-full px-4 py-1.5 text-xs font-medium transition-colors ${
+                isCurrent
+                  ? "cursor-not-allowed bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-600"
+                  : "bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40"
+              }`}
             >
               回到当前
             </button>
@@ -511,7 +550,7 @@ export default function PromptCrafting({ astrolabe }: PromptCraftingProps) {
           {/* Preview Text */}
           <div className="text-center">
             <div className="mb-1 text-xs text-gray-400 uppercase">
-              Pending Selection
+              {preview.sublabel}
             </div>
             <div className="text-lg font-bold text-gray-800 dark:text-white">
               {preview.label}
@@ -634,19 +673,30 @@ export default function PromptCrafting({ astrolabe }: PromptCraftingProps) {
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
             生成的 Prompt
           </h3>
-          <button
-            onClick={() => navigator.clipboard.writeText(fullPrompt)}
-            className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-600 transition-colors hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-          >
-            复制全部
-          </button>
+          {fullPrompt && (
+            <button
+              onClick={() => navigator.clipboard.writeText(fullPrompt)}
+              className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-600 transition-colors hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+            >
+              复制全部
+            </button>
+          )}
         </div>
-        <textarea
-          readOnly
-          value={fullPrompt}
-          rows={50}
-          className="w-full resize-y rounded-lg border border-gray-200 bg-gray-50 font-mono text-sm text-gray-800 outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
-        />
+        {!fullPrompt ? (
+          <div className="flex min-h-[200px] flex-col items-center justify-center rounded-lg border border-gray-100 bg-gray-50 p-8 dark:border-gray-800 dark:bg-gray-900/50">
+            <p className="text-sm text-gray-400">暂无内容</p>
+            <p className="mt-1 text-xs text-gray-400">
+              请从上方添加基础信息或流运
+            </p>
+          </div>
+        ) : (
+          <textarea
+            readOnly
+            value={fullPrompt}
+            rows={50}
+            className="w-full resize-y rounded-lg border border-gray-200 bg-gray-50 font-mono text-sm text-gray-800 outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
+          />
+        )}
       </section>
     </div>
   );

@@ -6,7 +6,7 @@ import {
   Settings,
   Sparkles,
   Github,
-  History,
+  List,
 } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import dayjs from "dayjs";
@@ -74,7 +74,7 @@ export default function InputForm({
   ];
 
   return (
-    <div className="flex h-auto w-full flex-col border-t border-gray-200 bg-white p-6 md:h-[calc(100vh-64px)] md:w-80 md:overflow-y-auto md:border-t-0 md:border-l dark:border-gray-700 dark:bg-gray-800">
+    <div className="flex h-auto w-full flex-col border-t border-gray-200 bg-white p-4 md:h-[calc(100vh-64px)] md:w-80 md:overflow-y-auto md:border-t-0 md:border-l md:p-6 dark:border-gray-700 dark:bg-gray-800">
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-2">
           <label className="text-sm text-gray-500 dark:text-gray-400">
@@ -117,10 +117,10 @@ export default function InputForm({
               onChange={(e) =>
                 setFormData({ ...formData, date: e.target.value })
               }
-              className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pr-4 pl-10 text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700"
+              className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pr-4 pl-10 text-sm text-gray-900 focus:ring-2 focus:ring-purple-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
             />
             <Calendar
-              className="absolute top-2.5 left-3 text-gray-400"
+              className="absolute top-2.5 left-3 text-gray-400 dark:text-gray-500"
               size={16}
             />
           </div>
@@ -151,7 +151,7 @@ export default function InputForm({
               onChange={(e) =>
                 setFormData({ ...formData, time: parseInt(e.target.value) })
               }
-              className="w-full appearance-none rounded-lg border border-gray-200 bg-gray-50 py-2 pr-10 pl-4 text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700"
+              className="w-full appearance-none rounded-lg border border-gray-200 bg-gray-50 py-2 pr-10 pl-4 text-sm text-gray-900 focus:ring-2 focus:ring-purple-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
             >
               {timeOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -209,7 +209,7 @@ export default function InputForm({
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             placeholder="请输入姓名"
-            className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700"
+            className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-purple-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
           />
         </div>
 
@@ -224,37 +224,37 @@ export default function InputForm({
       <div className="mt-8 grid grid-cols-4 gap-4">
         <button
           onClick={onOpenSettings}
-          className="flex flex-col items-center gap-1 text-xs text-gray-500 transition-colors hover:text-purple-600"
+          className="flex flex-col items-center gap-1 text-xs text-gray-500 transition-colors hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
         >
           <div className="rounded-lg bg-gray-50 p-2 hover:bg-purple-50 dark:bg-gray-700 dark:hover:bg-purple-900/30">
-            <Settings size={18} />
+            <Settings size={18} className="text-gray-500 dark:text-gray-400" />
           </div>
           <span>设置</span>
         </button>
         <button
           onClick={onDownload}
-          className="flex flex-col items-center gap-1 text-xs text-gray-500 transition-colors hover:text-purple-600"
+          className="flex flex-col items-center gap-1 text-xs text-gray-500 transition-colors hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
         >
           <div className="rounded-lg bg-gray-50 p-2 hover:bg-purple-50 dark:bg-gray-700 dark:hover:bg-purple-900/30">
-            <Download size={18} />
+            <Download size={18} className="text-gray-500 dark:text-gray-400" />
           </div>
           <span>下载</span>
         </button>
         <button
           onClick={onSave}
-          className="flex flex-col items-center gap-1 text-xs text-gray-500 transition-colors hover:text-purple-600"
+          className="flex flex-col items-center gap-1 text-xs text-gray-500 transition-colors hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
         >
           <div className="rounded-lg bg-gray-50 p-2 hover:bg-purple-50 dark:bg-gray-700 dark:hover:bg-purple-900/30">
-            <Save size={18} />
+            <Save size={18} className="text-gray-500 dark:text-gray-400" />
           </div>
           <span>保存</span>
         </button>
         <button
           onClick={onShowSaved}
-          className="flex flex-col items-center gap-1 text-xs text-gray-500 transition-colors hover:text-purple-600"
+          className="flex flex-col items-center gap-1 text-xs text-gray-500 transition-colors hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
         >
           <div className="rounded-lg bg-gray-50 p-2 hover:bg-purple-50 dark:bg-gray-700 dark:hover:bg-purple-900/30">
-            <History size={18} />
+            <List size={18} className="text-gray-500 dark:text-gray-400" />
           </div>
           <span>记录</span>
         </button>

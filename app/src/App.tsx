@@ -214,7 +214,16 @@ function App() {
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 font-sans transition-colors duration-200 dark:bg-gray-950">
       <Header />
-      <main className="relative flex flex-1 flex-col md:flex-row md:overflow-hidden">
+      <main className="relative flex flex-1 flex-col md:flex-row-reverse md:overflow-hidden">
+        <InputForm
+          onSubmit={handleFormSubmit}
+          onAIInterpret={handleAIInterpret}
+          onOpenSettings={() => setShowSettings(true)}
+          onDownload={handleDownload}
+          onSave={handleSave}
+          onShowSaved={() => setShowSavedCharts(true)}
+          values={astrolabeData}
+        />
         <div className="flex flex-1 flex-col items-center gap-8 p-4 pb-20 md:overflow-auto md:p-8 md:pb-8">
           <div
             ref={astrolabeRef}
@@ -234,15 +243,6 @@ function App() {
             <PromptCrafting astrolabe={astrolabeInstance} />
           </div>
         </div>
-        <InputForm
-          onSubmit={handleFormSubmit}
-          onAIInterpret={handleAIInterpret}
-          onOpenSettings={() => setShowSettings(true)}
-          onDownload={handleDownload}
-          onSave={handleSave}
-          onShowSaved={() => setShowSavedCharts(true)}
-          values={astrolabeData}
-        />
       </main>
 
       {/* AI设置对话框 */}
