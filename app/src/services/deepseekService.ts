@@ -180,8 +180,8 @@ export function getBasePalaceDetails(horoscope: IFunctionalHoroscope) {
       prompt.push(`  * 大限: ${palace.decadal.range.join(" - ")}`);
 
     });
-    return prompt.join("\n");
   }
+  return prompt.join("\n");
 }
 
 export function getPalacesPrompt(astrolabe: IFunctionalAstrolabe) {
