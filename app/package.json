@@ -17,6 +17,7 @@
     "autoprefixer": "^10.4.22",
     "clsx": "^2.1.1",
     "dayjs": "^1.11.19",
+    "firebase": "^12.7.0",
     "html-to-image": "^1.11.13",
     "iztro": "^2.5.4",
     "lucide-react": "^0.556.0",

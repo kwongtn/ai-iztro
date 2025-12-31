@@ -1,88 +1,81 @@
-import { useState, useRef, useMemo } from 'react';
-import { toPng } from 'html-to-image';
-import { Iztrolabe } from 'react-iztro';
-import { astro } from 'iztro';
-import Header from './components/Header';
-import InputForm from './components/InputForm';
-import AISettings from './components/AISettings';
-import AIInterpretation from './components/AIInterpretation';
-import dayjs from 'dayjs';
-import SavedCharts from './components/SavedCharts';
-import './ziwei-theme.css';
-import { isConfigured } from './services/aiConfig';
-import { interpretAstrolabe, buildPrompt } from './services/deepseekService';
-import PromptCrafting from './components/PromptCrafting';
+import { useState, useRef, useMemo } from "react";
+import { toPng } from "html-to-image";
+import { Iztrolabe } from "react-iztro";
+import { astro } from "iztro";
+import Header from "./components/Header";
+import InputForm from "./components/InputForm";
+import AISettings from "./components/AISettings";
+import AIInterpretation from "./components/AIInterpretation";
+import dayjs from "dayjs";
+import SavedCharts from "./components/SavedCharts";
+import "./ziwei-theme.css";
+import { isConfigured } from "./services/aiConfig";
+import { interpretAstrolabe, buildPrompt } from "./services/deepseekService";
+import PromptCrafting from "./components/PromptCrafting";
 
 function App() {
   const [astrolabeData, setAstrolabeData] = useState({
-    date: dayjs().format('YYYY-MM-DD'),
+    date: dayjs().format("YYYY-MM-DD"),
     time: 0,
-    gender: 'male' as 'male' | 'female',
-    dateType: 'solar' as 'solar' | 'lunar',
+    gender: "male" as "male" | "female",
+    dateType: "solar" as "solar" | "lunar",
     leap: false,
-    name: '',
+    name: "",
   });
 
   const [showSettings, setShowSettings] = useState(false);
   const [showInterpretation, setShowInterpretation] = useState(false);
   const [aiResult, setAiResult] = useState({
-    content: '',
-    reasoning: '',
+    content: "",
+    reasoning: "",
     isLoading: false,
-    error: '',
-    promptData: '',
+    error: "",
+    promptData: "",
   });
 
   const astrolabeRef = useRef<HTMLDivElement>(null);
-
-  const handleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      astrolabeRef.current?.requestFullscreen().catch(err => {
-        console.error(`Error attempting to enable fullscreen: ${err.message}`);
-      });
-    } else {
-      document.exitFullscreen();
-    }
-  };
 
   const handleDownload = async () => {
     if (astrolabeRef.current) {
       try {
         // 等待一小段时间确保DOM渲染完成
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
 
         const dataUrl = await toPng(astrolabeRef.current, {
           cacheBust: true,
-          backgroundColor: '#ffffff',
+          backgroundColor: "#ffffff",
           pixelRatio: 2, // High resolution
         });
 
-        const link = document.createElement('a');
-        link.download = `ziwei-chart-${dayjs().format('YYYYMMDD-HHmmss')}.png`;
+        const link = document.createElement("a");
+        link.download = `ziwei-chart-${dayjs().format("YYYYMMDD-HHmmss")}.png`;
         link.href = dataUrl;
         link.click();
       } catch (e) {
-        console.error('Download failed detail:', e);
-        alert('下载失败，请重试。如果问题持续，请尝试使用系统自带截图工具。');
+        console.error("Download failed detail:", e);
+        alert("下载失败，请重试。如果问题持续，请尝试使用系统自带截图工具。");
       }
     }
   };
 
   const handleSave = () => {
     try {
-      const savedCharts = JSON.parse(localStorage.getItem('ziwei_saved_charts') || '[]');
+      const savedCharts = JSON.parse(
+        localStorage.getItem("ziwei_saved_charts") || "[]",
+      );
       const newChart = {
         id: Date.now(),
         data: astrolabeData,
         savedAt: new Date().toISOString(),
-        name: astrolabeData.name || `命盘 ${dayjs().format('YYYY-MM-DD HH:mm')}`
+        name:
+          astrolabeData.name || `命盘 ${dayjs().format("YYYY-MM-DD HH:mm")}`,
       };
       savedCharts.push(newChart);
-      localStorage.setItem('ziwei_saved_charts', JSON.stringify(savedCharts));
-      alert('命盘保存成功！');
+      localStorage.setItem("ziwei_saved_charts", JSON.stringify(savedCharts));
+      alert("命盘保存成功！");
     } catch (e) {
-      console.error('Save failed', e);
-      alert('保存失败，请检查浏览器设置');
+      console.error("Save failed", e);
+      alert("保存失败，请检查浏览器设置");
     }
   };
 
@@ -91,31 +84,29 @@ function App() {
   const handleLoadChart = (chart: any) => {
     setAstrolabeData({
       ...chart.data,
-      name: chart.name // Ensure name is loaded
+      name: chart.name, // Ensure name is loaded
     });
     setShowSavedCharts(false);
   };
 
   const getSavedCharts = () => {
     try {
-      return JSON.parse(localStorage.getItem('ziwei_saved_charts') || '[]');
+      return JSON.parse(localStorage.getItem("ziwei_saved_charts") || "[]");
     } catch (e) {
       return [];
     }
   };
 
   const handleDeleteChart = (id: number) => {
-    if (confirm('确定要删除这个命盘吗？')) {
+    if (confirm("确定要删除这个命盘吗？")) {
       const charts = getSavedCharts();
       const newCharts = charts.filter((c: any) => c.id !== id);
-      localStorage.setItem('ziwei_saved_charts', JSON.stringify(newCharts));
+      localStorage.setItem("ziwei_saved_charts", JSON.stringify(newCharts));
       // Force re-render to update list
-      setShowSavedCharts(prev => !prev);
+      setShowSavedCharts((prev) => !prev);
       setTimeout(() => setShowSavedCharts(true), 0);
     }
   };
-
-
 
   const handleFormSubmit = (data: any) => {
     setAstrolabeData({
@@ -132,10 +123,16 @@ function App() {
   const handleAIInterpret = async () => {
     try {
       // 使用iztro直接生成astrolabe数据
-      const inputDate = dayjs(astrolabeData.date).format('YYYY-MM-DD');
-      const astrolabeInstance = astrolabeData.dateType === 'solar'
-        ? astro.bySolar(inputDate, astrolabeData.time, astrolabeData.gender)
-        : astro.byLunar(inputDate, astrolabeData.time, astrolabeData.gender, astrolabeData.leap);
+      const inputDate = dayjs(astrolabeData.date).format("YYYY-MM-DD");
+      const astrolabeInstance =
+        astrolabeData.dateType === "solar"
+          ? astro.bySolar(inputDate, astrolabeData.time, astrolabeData.gender)
+          : astro.byLunar(
+              inputDate,
+              astrolabeData.time,
+              astrolabeData.gender,
+              astrolabeData.leap,
+            );
 
       // 生成运势数据
       const horoscopeInstance = astrolabeInstance.horoscope(new Date(), 0);
@@ -145,10 +142,10 @@ function App() {
       if (!isConfigured()) {
         setShowInterpretation(true);
         setAiResult({
-          content: '',
-          reasoning: '',
+          content: "",
+          reasoning: "",
           isLoading: false,
-          error: '未配置API密钥。您可以复制上方【发送给AI的数据】手动询问。',
+          error: "未配置API密钥。您可以复制上方【发送给AI的数据】手动询问。",
           promptData: prompt,
         });
         return;
@@ -157,39 +154,42 @@ function App() {
       // 显示解读对话框并开始加载
       setShowInterpretation(true);
       setAiResult({
-        content: '',
-        reasoning: '',
+        content: "",
+        reasoning: "",
         isLoading: true,
-        error: '',
+        error: "",
         promptData: prompt,
       });
 
       // 调用AI服务进行解读
-      const result = await interpretAstrolabe({
-        astrolabeData: {
-          astrolabe: astrolabeInstance,
-          horoscope: horoscopeInstance,
+      const result = await interpretAstrolabe(
+        {
+          astrolabeData: {
+            astrolabe: astrolabeInstance,
+            horoscope: horoscopeInstance,
+          },
         },
-      }, (text) => {
-        setAiResult(prev => ({
-          ...prev,
-          content: text,
-        }));
-      });
+        (text) => {
+          setAiResult((prev) => ({
+            ...prev,
+            content: text,
+          }));
+        },
+      );
 
       setAiResult({
         content: result.content,
-        reasoning: result.reasoning || '',
+        reasoning: result.reasoning || "",
         isLoading: false,
-        error: '',
+        error: "",
         promptData: prompt,
       });
     } catch (error) {
       setAiResult({
-        content: '',
-        reasoning: '',
+        content: "",
+        reasoning: "",
         isLoading: false,
-        error: error instanceof Error ? error.message : 'AI解读失败',
+        error: error instanceof Error ? error.message : "AI解读失败",
         promptData: aiResult.promptData,
       });
     }
@@ -200,18 +200,26 @@ function App() {
   // Current logic in handleAIInterpret creates it on the fly.
   // We should memoize it so it updates when astrolabeData updates.
   const astrolabeInstance = useMemo(() => {
-    const inputDate = dayjs(astrolabeData.date).format('YYYY-MM-DD');
-    return astrolabeData.dateType === 'solar'
+    const inputDate = dayjs(astrolabeData.date).format("YYYY-MM-DD");
+    return astrolabeData.dateType === "solar"
       ? astro.bySolar(inputDate, astrolabeData.time, astrolabeData.gender)
-      : astro.byLunar(inputDate, astrolabeData.time, astrolabeData.gender, astrolabeData.leap);
+      : astro.byLunar(
+          inputDate,
+          astrolabeData.time,
+          astrolabeData.gender,
+          astrolabeData.leap,
+        );
   }, [astrolabeData]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col font-sans transition-colors duration-200">
+    <div className="flex min-h-screen flex-col bg-gray-50 font-sans transition-colors duration-200 dark:bg-gray-950">
       <Header />
-      <main className="flex-1 flex flex-col md:flex-row md:overflow-hidden relative">
-        <div className="flex-1 p-4 md:p-8 pb-20 md:pb-8 md:overflow-auto flex flex-col items-center gap-8">
-          <div ref={astrolabeRef} className="w-full max-w-5xl shadow-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-0 md:p-1 flex-shrink-0">
+      <main className="relative flex flex-1 flex-col md:flex-row md:overflow-hidden">
+        <div className="flex flex-1 flex-col items-center gap-8 p-4 pb-20 md:overflow-auto md:p-8 md:pb-8">
+          <div
+            ref={astrolabeRef}
+            className="w-full max-w-5xl flex-shrink-0 border border-gray-200 bg-white p-0 shadow-2xl md:p-1 dark:border-gray-800 dark:bg-gray-900"
+          >
             <Iztrolabe
               birthday={astrolabeData.date}
               birthTime={astrolabeData.time}
@@ -230,7 +238,6 @@ function App() {
           onSubmit={handleFormSubmit}
           onAIInterpret={handleAIInterpret}
           onOpenSettings={() => setShowSettings(true)}
-          onFullscreen={handleFullscreen}
           onDownload={handleDownload}
           onSave={handleSave}
           onShowSaved={() => setShowSavedCharts(true)}
