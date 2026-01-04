@@ -271,7 +271,7 @@ export default function InputForm({
 
       <div className="mt-auto border-t border-gray-100 pt-6 dark:border-gray-800">
         <a
-          href="https://github.com/jingrongx/react-iztro"
+          href="https://github.com/kwongtn/ai-iztro"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center justify-center gap-2 text-xs text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300"
