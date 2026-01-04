@@ -74,7 +74,7 @@ export default function InputForm({
   ];
 
   return (
-    <div className="flex h-auto w-full flex-col border-t border-gray-200 bg-white p-4 md:h-[calc(100vh-64px)] md:w-80 md:overflow-y-auto md:border-t-0 md:border-l md:p-6 dark:border-gray-700 dark:bg-gray-800">
+    <div className="flex h-auto w-full flex-col border-t border-gray-200 bg-white p-4 md:h-full md:w-80 md:overflow-y-auto md:border-t-0 md:border-l md:p-6 dark:border-gray-700 dark:bg-gray-800">
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-2">
           <label className="text-sm text-gray-500 dark:text-gray-400">

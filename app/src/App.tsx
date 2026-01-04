@@ -212,7 +212,7 @@ function App() {
   }, [astrolabeData]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50 font-sans transition-colors duration-200 dark:bg-gray-950">
+    <div className="flex min-h-screen flex-col bg-gray-50 font-sans transition-colors duration-200 md:h-screen dark:bg-gray-950">
       <Header />
       <main className="relative flex flex-1 flex-col md:flex-row-reverse md:overflow-hidden">
         <InputForm
